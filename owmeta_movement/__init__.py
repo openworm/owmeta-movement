@@ -22,15 +22,16 @@ CONTEXT = ClassContext(imported=(BASE_CONTEXT,),
 
 class MovementDataSourceTypeCreator(DataSourceTypeCreator):
 
-    def __init__(self):
-        wcon_schema = resource_stream('owmeta_movement', 'wcon_schema_2017_06.json')
-        with wcon_schema:
-            schema = json.load(wcon_schema)
-        super().__init__('MovementDataSource', schema, module=__name__, context=CONTEXT)
+    def __init__(self, schema, **kwargs):
+        super().__init__('MovementDataSource', schema,
+                module=__name__,
+                context=CONTEXT,
+                **kwargs)
 
     def create_type(self, path, schema):
-        self.cdict['base_namespace'] = Namespace(BASE_SCHEMA_URL)
-        self.cdict['base_dat_namespace'] = Namespace(BASE_DATA_URL)
+        cdict = self.cdict.setdefault(path, {})
+        cdict['base_namespace'] = Namespace(BASE_SCHEMA_URL + '/')
+        cdict['base_data_namespace'] = Namespace(BASE_DATA_URL + '/')
         res = super().create_type(path, schema)
         mod = importlib.import_module(__name__)
         setattr(mod, res.__name__, res)
@@ -38,4 +39,7 @@ class MovementDataSourceTypeCreator(DataSourceTypeCreator):
         return res
 
 
-ANNOTATED_SCHEMA = MovementDataSourceTypeCreator().annotate()
+_wcon_schema = resource_stream('owmeta_movement', 'wcon_schema_2017_06.json')
+with _wcon_schema:
+    _schema = json.load(_wcon_schema)
+ANNOTATED_SCHEMA = MovementDataSourceTypeCreator(_schema).annotate()
