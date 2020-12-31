@@ -6,14 +6,15 @@ import tempfile
 import zipfile
 import shutil
 import json
-import hashlib
 import io
 
 from owmeta_core.collections import Seq
 from owmeta_core.dataobject import DatatypeProperty
-from owmeta_core.json_schema import DataObjectCreator, Creator
+from owmeta_core.json_schema import DataObjectCreator
 import requests
+import rdflib
 
+from pow_zodb.ZODB import register_id_series
 from . import MovementDataSource
 
 
@@ -272,3 +273,17 @@ class CeMEEDataSourceCreator(DataObjectCreator):
             sequence[idx] = item
             return sequence
         return super().add_to_sequence(schema, sequence, idx, item)
+
+    def assign(self, obj, key, val):
+        path = self.path_stack
+        if len(path) == 2 and path[0] == 'data' and isinstance(val, (dict, list)):
+            val = DataLiteral(val)
+        super().assign(obj, key, val)
+
+
+DATA_LITERAL_SERIES = __name__ + '.DataLiteral'
+register_id_series(DATA_LITERAL_SERIES)
+
+
+class DataLiteral(rdflib.Literal):
+    zodb_id_series = DATA_LITERAL_SERIES
