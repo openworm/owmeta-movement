@@ -43,7 +43,8 @@ def main():
             ' necessarily provide headers for client-side caching',
             default='zenodo_cache')
 
-    parser.add_argument('--context', help='Context ID. By default, will use the'
+    parser.add_argument('--context',
+            help='Context where the DataSource will be saved. By default, will use the'
             ' project\'s default context')
 
     args = parser.parse_args()
