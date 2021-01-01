@@ -32,6 +32,8 @@ class ZenodoMovementDataSource(MovementDataSource):
             ' site URL if this property is unavailable')
     zenodo_id = DatatypeProperty(__doc__='Record ID from Zenodo')
 
+    unmapped = False
+
     @contextmanager
     def download_from_zenodo(self, file_name, session=None):
         '''
