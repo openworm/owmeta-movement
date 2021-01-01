@@ -21,7 +21,7 @@ def main():
     ident_group.add_argument('--key', help='Key for the new data source')
     ident_group.add_argument('--ident', help='Identifier for the new data source')
 
-    parser.add_argument('--zenodo-id', help='Zenodo ID', default=4074963)
+    parser.add_argument('--zenodo-id', help='Zenodo ID', default=4074963, type=int)
     parser.add_argument('--zenodo-file-name',
             help='Name of the file from the CeMEE record',
             default='CeMEE_MWT_founders.tar.gz')
