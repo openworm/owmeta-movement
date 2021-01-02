@@ -9,13 +9,21 @@ import json
 import io
 
 from owmeta_core.collections import Seq
+from owmeta_core.context import ClassContext
 from owmeta_core.dataobject import DatatypeProperty
 from owmeta_core.json_schema import DataObjectCreator
+from pow_zodb.ZODB import register_id_series
 import requests
 import rdflib
 
-from pow_zodb.ZODB import register_id_series
-from . import MovementDataSource
+from . import MovementDataSource, CONTEXT
+
+
+SCHEMA_URL = 'http://schema.openworm.org/2020/07/sci/bio/movement/zenodo'
+
+CONTEXT = ClassContext(ident=SCHEMA_URL,
+        imported=(CONTEXT,),
+        base_namespace=SCHEMA_URL + '#')
 
 
 class ZenodoMovementDataSource(MovementDataSource):
@@ -28,6 +36,8 @@ class ZenodoMovementDataSource(MovementDataSource):
 
     https://zenodo.org/communities/open-worm-movement-database/?page=1&size=20
     '''
+    class_context = CONTEXT
+
     zenodo_base_url = DatatypeProperty(__doc__='Base Zenodo URL. Should use the well-known'
             ' site URL if this property is unavailable')
     zenodo_id = DatatypeProperty(__doc__='Record ID from Zenodo')
@@ -69,6 +79,7 @@ class CeMEEDataSource(ZenodoMovementDataSource):
 
     See https://zenodo.org/record/4074963 for more.
     '''
+    class_context = CONTEXT
 
     zenodo_file_name = DatatypeProperty(__doc__='Name of the source file from the Zenodo record')
     sample_zip_file_name = DatatypeProperty(__doc__='Name of the WCON zip within the archive file from the'
