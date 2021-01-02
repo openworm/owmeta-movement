@@ -24,7 +24,7 @@ def main():
             ' provided, then all available records will be displayed', type=int)
 
     args = parser.parse_args()
-    with OWM().connect() as conn:
+    with OWM().connect(read_only=True) as conn:
         if args.context is None:
             context = args.context
         else:
