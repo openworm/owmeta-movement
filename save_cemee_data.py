@@ -55,6 +55,7 @@ def main():
             context = conn.owm.get_default_context()
         ctx = conn(Context)(context)
         ctx.add_import(BASE_CONTEXT)
+        ctx.add_import(CeMEEDataSource.definition_context)
         ds = ctx(CeMEEDataSource)(
                 ident=args.ident,
                 key=args.key,
@@ -75,6 +76,8 @@ def main():
                 cache_directory=args.zenodo_cache_directory)
         with transaction.manager:
             ctx.save()
+            ctx.save_imports()
+        print(ds.identifier)
 
 
 if __name__ == '__main__':
