@@ -2,9 +2,9 @@ from setuptools import setup
 
 setup(name='owmeta_movement',
       install_requires=[
-          'owmeta_core',
+          'owmeta-core',
           'rdflib',
-          'pow_zodb',
+          'pow-store-zodb',
           'requests',
           'cachecontrol[filecache]'],
       extras_require={'plot': ['matplotlib']},
