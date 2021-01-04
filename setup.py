@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(name='owmeta_movement',
       install_requires=[
-          'owmeta-core',
+          'owmeta-core>=0.14.0.dev0',
           'rdflib',
           'pow-store-zodb',
           'requests',
