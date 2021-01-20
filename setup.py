@@ -1,6 +1,7 @@
 from setuptools import setup
 
 setup(name='owmeta_movement',
+      version='0.0.1',
       install_requires=[
           'owmeta-core>=0.14.0.dev0',
           'rdflib',

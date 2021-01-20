@@ -267,6 +267,9 @@ class _SparseList(list):
 
 
 class CeMEEDataSourceCreator(DataObjectCreator):
+    '''
+    Creates MovementDataSources from CeMEE Zenodo records
+    '''
     def make_instance(self, owm_type):
         if issubclass(owm_type, MovementDataSource):
             return super().make_instance(CeMEEDataSource)
