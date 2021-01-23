@@ -137,6 +137,8 @@ class ZenodoRecordDirLoader(DataSourceDirLoader):
                 pass
             else:
                 with self._download_from_zenodo(zenodo_id, file_name, zenodo_base_url) as response:
+                    if response.status_code != 200:
+                        raise LoadFailed(data_source, self, f'Missing file {file_name}')
                     with open(dest_file_name, 'wb') as dest_file:
                         # Zenodo seems to assign a distinct record ID for each version of a
                         # record, so we shouldn't have to worry about conflicts here

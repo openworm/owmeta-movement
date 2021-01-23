@@ -40,7 +40,7 @@ class ServerData:
         return self.scheme + '://{}:{}'.format(*self.server.server_address)
 
     def make_server(self, handler_func):
-        return make_server(self, handler=handler_func and handler_func(self))
+        self.server = make_server(self, handler=handler_func and handler_func(self))
 
     @property
     def basic_handler(self):
@@ -100,18 +100,28 @@ def _http_server(handler_func=None):
 
 @fixture
 def https_server():
-    import ssl
     with _http_server() as server_data:
-        server_data.server.socket = \
-                ssl.wrap_socket(server_data.server.socket,
+        _sslify(server_data)
+        server_data.start()
+        old_restart = server_data.restart
+
+        def restart():
+            _sslify(server_data)
+            old_restart()
+        server_data.restart = restart
+        yield server_data
+
+
+def _sslify(server_data):
+    import ssl
+    server_data.server.socket = \
+        ssl.wrap_socket(server_data.server.socket,
                         certfile=p('tests', 'cert.pem'),
                         keyfile=p('tests', 'key.pem'),
                         server_side=True)
-        server_data.ssl_context = ssl.SSLContext()
-        server_data.ssl_context.load_verify_locations(p('tests', 'cert.pem'))
-        server_data.scheme = 'https'
-        server_data.start()
-        yield server_data
+    server_data.ssl_context = ssl.SSLContext()
+    server_data.ssl_context.load_verify_locations(p('tests', 'cert.pem'))
+    server_data.scheme = 'https'
 
 
 @fixture
