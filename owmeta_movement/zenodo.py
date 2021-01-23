@@ -7,8 +7,8 @@ import shutil
 
 from bs4 import BeautifulSoup
 from owmeta_core.data_trans.local_file_ds import LocalFileDataSource
-from owmeta_core.capabilities import FilePathProvider
 from owmeta_core.context import ClassContext
+from owmeta_core.datasource_loader import DataSourceDirLoader, LoadFailed
 from owmeta_core.dataobject import DatatypeProperty
 import requests
 
@@ -23,12 +23,12 @@ CONTEXT = ClassContext(ident=SCHEMA_URL,
         base_namespace=SCHEMA_URL + '#')
 
 
-class ZenodoFilePathProvider(FilePathProvider):
+class ZenodoRecordDirLoader(DataSourceDirLoader):
     '''
     Provides files by downloading them from Zonodo.
     '''
 
-    def __init__(self, base_directory, session_provider=None):
+    def __init__(self, base_directory, session_provider=None, **kwargs):
         '''
         Parameters
         ----------
@@ -41,20 +41,18 @@ class ZenodoFilePathProvider(FilePathProvider):
             Should return a requests.Session for the sake of making requests to Zenodo. By
             default, will use a new session for every request
         '''
-        if not base_directory:
-            raise ValueError('Expected a directory path name for `base_directory`')
+        super().__init__(base_directory=base_directory, **kwargs)
 
         if session_provider is None:
             session_provider = lambda: requests.Session()
         self._session_provider = session_provider
-        self._base_directory = base_directory
 
-    def provides_to(self, ob):
+    def can_load(self, ob):
         try:
             zenodo_id = ob.zenodo_id()
         except AttributeError:
             L.debug('Missing zenodo_id property for %s. Cannot download any files', ob)
-            return None
+            return False
 
         try:
             file_name = ob.zenodo_file_name()
@@ -65,11 +63,11 @@ class ZenodoFilePathProvider(FilePathProvider):
 
         if not zenodo_id:
             L.debug('zenodo_id value is invalid: %s', zenodo_id)
-            return None
+            return False
 
         if file_name is not None and not file_name:
             L.debug('zenodo_file_name value is invalid: %s', file_name)
-            return None
+            return False
 
         # Check the zenodo file is reachable by try to grab the HEAD response for it
         # zenodo_base_url is entirely optional
@@ -86,38 +84,45 @@ class ZenodoFilePathProvider(FilePathProvider):
 
         session = self._session_provider()
         response = session.head(url)
-        if response.status_code == 200:
-            return _ZenodoFileProvider(self._session_provider, self._base_directory,
-                    file_name, zenodo_base_url, zenodo_id)
-        return None
+        return response.status_code == 200
 
+    def load(self, data_source):
+        try:
+            zenodo_id = str(data_source.zenodo_id())
+        except AttributeError:
+            raise LoadFailed(data_source, self,
+                    'Missing zenodo_id property')
 
-class _ZenodoFileProvider(FilePathProvider):
-    def __init__(self, session_provider, base_directory, file_name, zenodo_base_url, zenodo_id):
-        self.file_name = file_name
-        self.zenodo_base_url = zenodo_base_url
-        self.zenodo_id = zenodo_id
-        self._session_provider = session_provider
-        self._base_directory = base_directory
-
-    def file_path(self):
-        recorddir = p(self.base_directory, str(self.zenodo_id))
+        try:
+            file_name = data_source.zenodo_file_name()
+        except AttributeError:
+            file_name = None
+            L.debug('Missing zenodo_file_name for %s. Will download all files in the'
+                    ' record...', data_source)
+        recorddir = p(self.base_directory, zenodo_id)
         makedirs(recorddir, exist_ok=True)
 
+        zenodo_base_url_prop = getattr(data_source, 'zenodo_base_url', None)
+        if zenodo_base_url_prop is not None:
+            zenodo_base_url = zenodo_base_url_prop()
+        else:
+            zenodo_base_url = None
+        zenodo_base_url = zenodo_base_url or 'https://zenodo.org'
         # May re-evaluate this for resilence  -- as it is, we could fail part-way
         # through and have to redo everything
-        if self.file_name:
-            files = [self.file_name]
+        if file_name:
+            files = [file_name]
         else:
             # Yeah, I know they have an API. Don't care.
             session = self._session_provider()
             files = []
-            with session.get(_record_url(self.zenodo_base_url, self.zenodo_id),
-                    stream=True) as response:
+            with session.get(_record_url(zenodo_base_url, zenodo_id), stream=True) as response:
                 soup = BeautifulSoup(response.raw, 'html.parser')
-                re_safe_id = re.escape(self.zenodo_id)
+                re_safe_id = re.escape(zenodo_id)
                 file_ref_re = re.compile(rf'/record/{re_safe_id}/files/(.*)\?download=1')
                 link_elems = soup.find_all(href=file_ref_re)
+                if not link_elems:
+                    raise LoadFailed(data_source, self, 'Could not find any files')
                 for elem in link_elems:
                     md = file_ref_re.match(elem['href'])
                     if md:
@@ -131,14 +136,15 @@ class _ZenodoFileProvider(FilePathProvider):
                 # TODO: check the hash of the file is the one we expect
                 pass
             else:
-                with self._download_from_zenodo(file_name) as response:
+                with self._download_from_zenodo(zenodo_id, file_name, zenodo_base_url) as response:
                     with open(dest_file_name, 'wb') as dest_file:
                         # Zenodo seems to assign a distinct record ID for each version of a
                         # record, so we shouldn't have to worry about conflicts here
                         shutil.copyfileobj(response.raw, dest_file)
         return recorddir
 
-    def _download_from_zenodo(self, file_name):
+    @contextmanager
+    def _download_from_zenodo(self, zenodo_id, file_name, base_url):
         '''
         Download a file from zenodo.
 
@@ -146,19 +152,14 @@ class _ZenodoFileProvider(FilePathProvider):
 
         Parameters
         ----------
+        zenodo_id : str
+            The Zenodo record ID
         file_name : str
             The file name for
-        session : requests.sessions.Session, optional
-            Session to use for requests. If omitted, a basic one will be created
-            automatically
-
-        Yields
-        ------
-        requests.Response
-            A streaming response for the file from Zenodo.
+        base_url : str
+            The base zenodo URL
         '''
-        base_url = self.zenodo_base_url or 'https://zenodo.org'
-        file_url = _file_url(base_url, self.zenodo_id, file_name)
+        file_url = _file_url(base_url, zenodo_id, file_name)
         session = self._session_provider()
         with session.get(file_url, stream=True) as response:
             yield response

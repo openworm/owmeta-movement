@@ -2,93 +2,75 @@ import os
 from os.path import join as p
 from unittest.mock import Mock
 import shutil
-
-from owmeta_movement.zenodo import ZenodoFilePathProvider
-#from owmeta_core.capabilities import FilePathProvider
 import pytest
+
+from owmeta_movement.zenodo import ZenodoRecordDirLoader
 import requests
 
 
-@pytest.mark.inttest
-def test_provides_to(tmp_path, https_server):
+def test_can_load(zenodo_dir_loader):
     '''
     Test that we provide for a matching record ID with no file name
     '''
+    cut, https_server = zenodo_dir_loader
     os.mkdir(p(https_server.base_directory, 'record'))
-    session = requests.Session()
-    https_server.trust_server(session)
-    cut = ZenodoFilePathProvider(tmp_path, lambda: session)
     shutil.copyfile(p('tests', 'testdata', 'zenodo_record_20210122.html'),
                     p(https_server.base_directory, 'record', '4074963'))
     ob = Mock()
     ob.zenodo_base_url.return_value = https_server.url
     ob.zenodo_id.return_value = 4074963
     ob.zenodo_file_name.return_value = None
-    assert cut.provides_to(ob)
+    assert cut.can_load(ob)
 
 
-@pytest.mark.inttest
-def test_provides_to_no_file_attr(tmp_path, https_server):
+def test_can_load_no_file_attr(zenodo_dir_loader):
     '''
     Test that we provide for a matching record ID with no file name
     '''
+    cut, https_server = zenodo_dir_loader
     os.mkdir(p(https_server.base_directory, 'record'))
-    session = requests.Session()
-    https_server.trust_server(session)
-    cut = ZenodoFilePathProvider(tmp_path, lambda: session)
     shutil.copyfile(p('tests', 'testdata', 'zenodo_record_20210122.html'),
                     p(https_server.base_directory, 'record', '4074963'))
     ob = Mock()
     ob.zenodo_base_url.return_value = https_server.url
     ob.zenodo_id.return_value = 4074963
     ob.zenodo_file_name.side_effect = AttributeError
-    assert cut.provides_to(ob)
+    assert cut.can_load(ob)
 
 
-@pytest.mark.inttest
-def test_provides_to_fail_not_found(tmp_path, https_server):
+def test_can_load_fail_not_found(zenodo_dir_loader):
     '''
     Test that we provide for a matching record ID with no file name
     '''
-    os.mkdir(p(https_server.base_directory, 'record'))
-    session = requests.Session()
-    https_server.trust_server(session)
-    cut = ZenodoFilePathProvider(tmp_path, lambda: session)
-    shutil.copyfile(p('tests', 'testdata', 'zenodo_record_20210122.html'),
-                    p(https_server.base_directory, 'record', '4074963'))
+    cut, https_server = zenodo_dir_loader
     ob = Mock()
     ob.zenodo_base_url.return_value = https_server.url
-    ob.zenodo_id.return_value = 4074962
+    ob.zenodo_id.return_value = 4074963
     ob.zenodo_file_name.return_value = None
-    assert cut.provides_to(ob) is None
+    assert not cut.can_load(ob)
 
 
-@pytest.mark.inttest
-def test_provides_to_file_fail_not_found(tmp_path, https_server):
+def test_can_load_file_fail_not_found(zenodo_dir_loader):
     '''
     Test that we provide for a matching record ID with no file name
     '''
-    os.mkdir(p(https_server.base_directory, 'record'))
-    session = requests.Session()
-    https_server.trust_server(session)
-    cut = ZenodoFilePathProvider(tmp_path, lambda: session)
+    cut, https_server = zenodo_dir_loader
+    recorddir = p(https_server.base_directory, 'record')
+    os.mkdir(recorddir)
     shutil.copyfile(p('tests', 'testdata', 'zenodo_record_20210122.html'),
-                    p(https_server.base_directory, 'record', '4074963'))
+                    p(recorddir, '4074963'))
     ob = Mock()
     ob.zenodo_base_url.return_value = https_server.url
     ob.zenodo_id.return_value = 4074963
     ob.zenodo_file_name.return_value = 'CeMEE_MWT_MA.tar.gz'
-    assert cut.provides_to(ob) is None
+    assert not cut.can_load(ob)
 
 
-@pytest.mark.inttest
-def test_provides_to_file(tmp_path, https_server):
+def test_can_load_file(zenodo_dir_loader):
     '''
     Test that we provide for a matching record ID with no file name
     '''
-    session = requests.Session()
-    https_server.trust_server(session)
-    cut = ZenodoFilePathProvider(tmp_path, lambda: session)
+    cut, https_server = zenodo_dir_loader
 
     filesdir = p(https_server.base_directory, 'record', '4074963', 'files')
     os.makedirs(filesdir)
@@ -99,4 +81,15 @@ def test_provides_to_file(tmp_path, https_server):
     ob.zenodo_base_url.return_value = https_server.url
     ob.zenodo_id.return_value = 4074963
     ob.zenodo_file_name.return_value = 'CeMEE_MWT_MA.tar.gz'
-    assert cut.provides_to(ob)
+    assert cut.can_load(ob)
+
+
+def test_load_file(tmp_path, https_server):
+    pass
+
+
+@pytest.fixture
+def zenodo_dir_loader(tmp_path, https_server):
+    session = requests.Session()
+    https_server.trust_server(session)
+    return ZenodoRecordDirLoader(tmp_path, lambda: session), https_server
