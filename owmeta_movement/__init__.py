@@ -9,7 +9,9 @@ import importlib
 from owmeta_core.context import ClassContext
 from owmeta_core import BASE_CONTEXT
 from owmeta_core.json_schema import DataSourceTypeCreator
+from pow_zodb.ZODB import register_id_series
 from rdflib.namespace import Namespace
+from rdflib.term import Literal
 
 
 BASE_SCHEMA_URL = 'http://schema.openworm.org/2020/07/sci/bio/movement'
@@ -55,3 +57,11 @@ del _schema
 
 
 MovementDataSource = MovementDataSourceTypeCreator.retrieve_type(WCON_SCHEMA_2020_07)
+
+
+DATA_LITERAL_SERIES = __name__ + '.DataLiteral'
+register_id_series(DATA_LITERAL_SERIES)
+
+
+class DataLiteral(Literal):
+    zodb_id_series = DATA_LITERAL_SERIES
