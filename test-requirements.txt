@@ -1,3 +1,4 @@
 pytest
 pytest-cov
 coveralls
+http-server-pytest-fixtures
