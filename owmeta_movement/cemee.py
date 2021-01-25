@@ -6,74 +6,50 @@ import shutil
 import tarfile
 import tempfile
 import zipfile
+from contextlib import contextmanager
 
-from owmeta_core.dataobject import DatatypeProperty
+from owmeta_core.capabilities import FilePathCapability, CacheDirectoryCapability
+from owmeta_core.datasource import DataTranslator, Informational
 from owmeta_core.json_schema import DataObjectCreator
 from owmeta_core.collections import Seq
 
-from . import MovementDataSource, CONTEXT, DataLiteral
+from . import MovementDataSource, CONTEXT, DataLiteral, WCON_SCHEMA_2020_07
+from .zenodo import ZenodoFileDataSource
 
 
-class CeMEEDataSource(MovementDataSource):
-    '''
-    Dealing with the CeMEE Multi-Worm Tracker entries.
-
-    See https://zenodo.org/record/4074963 for more.
-    '''
+class CeMEEWCONDataSource(ZenodoFileDataSource):
     class_context = CONTEXT
+    needed_capabilities = [FilePathCapability(), CacheDirectoryCapability()]
 
-    zenodo_file_name = DatatypeProperty(__doc__='Name of the source file from the Zenodo record')
-    sample_zip_file_name = DatatypeProperty(__doc__='Name of the WCON zip within the archive file from the'
-            ' Zenodo record. Nominally, corresponds to a sample identified by its strain'
-            ' and a timestamp')
+    sample_zip_file_name = Informational(description='Name of the WCON zip within the'
+            ' archive file from the Zenodo record. Nominally, corresponds to a sample'
+            ' identified by its strain and a timestamp', multiple=False)
 
-    zenodo_file_hash = DatatypeProperty(__doc__='Hash of the contents of the file from'
-            ' Zenodo. Formatted like ``<hash-name>:<base64-encoded-hash>``', multiple=True)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-    sample_zip_file_hash = DatatypeProperty(__doc__='Hash of the contents of the sample'
-            ' ZIP file within the archive from Zenodo. Formatted like'
-            ' ``<hash-name>:<base64-encoded-hash>``', multiple=True)
+        self._cache_provider = None
 
-    def populate_from_zenodo(self, schema, session=None, cache_directory=None):
+    def accept_capability_provider(self, cap, provider):
+        if isinstance(cap, CacheDirectoryCapability):
+            self._cache_provider = provider
+        else:
+            super().accept_capability_provider(cap, provider)
+
+    @contextmanager
+    def wcon_contents(self):
         '''
-        Load a data source from a CeMEE record in Zenodo by downloading the WCON data,
-        reading in the metadata
-
-        If `zenodo_file_hash` is set, then it will be used for checking any existing file
-        in the cache directory.
-
-        Parameters
-        ----------
-        schema : dict
-            `MovementDataSourceTypeCreator`-annotated schema for the WCON data
-        session : requests.sessions.Session, optional
-            Session to use for requests to Zenodo.
-        cache_directory : str, optional
-            Directory where files should be saved during extraction. The files created in
-            this directory may be reused by other instances *of the same version* of class
-            if possible. If not provided, then a temporary directory will be created and
-            cleaned up after.
-
-        See Also
-        --------
-        ZenodoMovementDataSource.download_from_zenodo
+        Return the wcon file contents
         '''
-        # Could have opted to make this a classmethod and create the whole datasource, but
-        # then we'd be constraining how the datasource gets created and we'd feel
-        # compelled to recreate the interface for constructing the object. It's still
-        # possible for *someone else* to do those things where it makes more sense (i.e.,
-        # a higher-level interface, but then they'll have this method to help them out.
-
-        # Assign these to self just to avoid the
-        zenodo_id = self.zenodo_id()
+        zenodo_id = self.zenodo_id.one()
         if not zenodo_id:
             raise Exception('Missing `zenodo_id`')
 
-        zenodo_file_name = self.zenodo_file_name()
+        zenodo_file_name = self.zenodo_file_name.one()
         if not zenodo_file_name:
             raise Exception('Missing `zenodo_file_name`')
 
-        sample_zip_file_name = self.sample_zip_file_name()
+        sample_zip_file_name = self.sample_zip_file_name.one()
         if not sample_zip_file_name:
             raise Exception('Missing `sample_zip_file_name`')
 
@@ -81,6 +57,10 @@ class CeMEEDataSource(MovementDataSource):
 
         if ext != '.zip':
             raise Exception('Expected sample_zip_file_name to be a zip file name')
+
+        cache_directory = None
+        if self._cache_provider:
+            cache_directory = self._cache_provider.cache_directory()
 
         cleanup_dir = False
         if cache_directory is None:
@@ -90,18 +70,9 @@ class CeMEEDataSource(MovementDataSource):
         makedirs(mycachedir, exist_ok=True)
 
         try:
-            # May re-evaluate this for resilence  -- as it is, we could fail part-way
+            # May re-evaluate this for resilence -- as it is, we could fail part-way
             # through and have to redo everything
-            cached_tar_file_name = p(mycachedir, zenodo_file_name)
-            if isfile(cached_tar_file_name):
-                # TODO: check the file is the one we expect
-                pass
-            else:
-                with self.download_from_zenodo(zenodo_file_name) as response:
-                    with open(cached_tar_file_name, 'wb') as tar_file:
-                        # Zenodo seems to assign a distinct record ID for each version of a
-                        # record, so we shouldn't have to worry about conflicts here
-                        shutil.copyfileobj(response.raw, tar_file)
+            cached_tar_file_name = self.full_path()
 
             wcon_zip_file_name = p(mycachedir, sample_zip_file_name)
             if isfile(wcon_zip_file_name):
@@ -113,55 +84,67 @@ class CeMEEDataSource(MovementDataSource):
 
             with zipfile.ZipFile(wcon_zip_file_name) as zf, \
                     zf.open(sample_wcon_file_name) as wcon:
-                wcon_json = json.load(wcon)
-                # CeMEE wants to be special... fix up their data
-                try:
-                    lab = wcon_json['metadata']['lab']
-                    if isinstance(lab, str):
-                        wcon_json['metadata']['lab'] = {'name': lab}
-                except KeyError:
-                    pass
-
-                try:
-                    software = wcon_json['units']['software']
-                    del wcon_json['units']['software']
-                    wcon_json.setdefault('metadata', {})['software'] = software
-                except KeyError:
-                    pass
-
-                try:
-                    food = wcon_json['units']['food']
-                    del wcon_json['units']['food']
-                    wcon_json.setdefault('metadata', {})['food'] = food
-                except KeyError:
-                    pass
-                data = wcon_json['data']
-                if isinstance(data, dict) and 'x' not in data:
-                    # 'x' is required in a data record, so this was *probably* supposed to
-                    # be an array, so let's pretend it is one
-                    new_data = dict()
-                    for index, record in data.items():
-                        # CeMEE uses integers for the IDs, but we need strings
-                        record['id'] = str(record['id'])
-                        # The times don't match
-                        record['t'] = record['t'][0]
-                        new_data[int(index)] = record
-                    wcon_json['data'] = _SparseList(new_data)
-                CeMEEDataSourceCreator(schema).fill_in(self, wcon_json)
+                yield wcon
         finally:
             if cleanup_dir:
                 shutil.rmtree(cache_directory)
+
+
+class CeMEEDataTranslator(DataTranslator):
+    '''
+    Dealing with the CeMEE Multi-Worm Tracker entries.
+
+    See https://zenodo.org/record/4074963 for more.
+    '''
+    input_types = (CeMEEWCONDataSource,)
+    output_type = MovementDataSource
+
+    def translate(self, source):
+        # Assign these to self just to avoid the
+        with source.wcon_contents() as wcon:
+            wcon_json = json.load(wcon)
+            # CeMEE wants to be special... fix up their data
+            try:
+                lab = wcon_json['metadata']['lab']
+                if isinstance(lab, str):
+                    wcon_json['metadata']['lab'] = {'name': lab}
+            except KeyError:
+                pass
+
+            try:
+                software = wcon_json['units']['software']
+                del wcon_json['units']['software']
+                wcon_json.setdefault('metadata', {})['software'] = software
+            except KeyError:
+                pass
+
+            try:
+                food = wcon_json['units']['food']
+                del wcon_json['units']['food']
+                wcon_json.setdefault('metadata', {})['food'] = food
+            except KeyError:
+                pass
+            data = wcon_json['data']
+            if isinstance(data, dict) and 'x' not in data:
+                # 'x' is required in a data record, so this was *probably* supposed to
+                # be an array, so let's pretend it is one
+                new_data = dict()
+                for index, record in data.items():
+                    # CeMEE uses integers for the IDs, but we need strings
+                    record['id'] = str(record['id'])
+                    # The times don't match
+                    record['t'] = record['t'][0]
+                    new_data[int(index)] = record
+                wcon_json['data'] = _SparseList(new_data)
+            res = self.make_new_output((source,))
+            CeMEEDataSourceCreator(WCON_SCHEMA_2020_07).fill_in(res, wcon_json)
+            return res
 
 
 class CeMEEDataSourceCreator(DataObjectCreator):
     '''
     Creates MovementDataSources from CeMEE Zenodo records
     '''
-    def make_instance(self, owm_type):
-        if issubclass(owm_type, MovementDataSource):
-            return super().make_instance(CeMEEDataSource)
-        return super().make_instance(owm_type)
-
     def begin_sequence(self, schema):
         path = self.path_stack
         if len(path) == 1 and path[0] == 'data':

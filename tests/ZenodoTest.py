@@ -140,6 +140,13 @@ def test_load_some_files(tmp_path, https_server):
         cut.load(ob)
 
 
+@pytest.mark.inttest
+def test_load_real():
+    '''
+    Test actually loading from Zenodo
+    '''
+
+
 @pytest.fixture
 def zenodo_dir_loader(tmp_path, https_server):
     session = requests.Session()

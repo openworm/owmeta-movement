@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from owmeta_core.data_trans.local_file_ds import LocalFileDataSource
 from owmeta_core.context import ClassContext
 from owmeta_core.datasource_loader import DataSourceDirLoader, LoadFailed
-from owmeta_core.dataobject import DatatypeProperty
+from owmeta_core.datasource import Informational
 import requests
 
 from . import CONTEXT
@@ -187,38 +187,8 @@ class ZenodoFileDataSource(LocalFileDataSource):
     '''
     class_context = CONTEXT
 
-    zenodo_base_url = DatatypeProperty(__doc__='Base Zenodo URL. Should use the well-known'
-            ' site URL if this property is unavailable')
-    zenodo_id = DatatypeProperty(__doc__='Record ID from Zenodo')
-    zenodo_file_name = DatatypeProperty(__doc__='Name of a file in a Zenodo record in'
-            ' `zenodo_id`')
-
-    unmapped = False
-
-    @contextmanager
-    def download_from_zenodo(self, file_name, session=None):
-        '''
-        Download a file from zenodo.
-
-        The response should be used in a context manager to ensure it is closed properly.
-
-        Parameters
-        ----------
-        file_name : str
-            The file name for
-        session : requests.sessions.Session, optional
-            Session to use for requests. If omitted, a basic one will be created
-            automatically
-
-        Yields
-        ------
-        requests.Response
-            A streaming response for the file from Zenodo.
-        '''
-        base_url = self.zenodo_base_url() or 'https://zenodo.org'
-        zenodo_id = self.zenodo_id()
-        file_url = f'{base_url}/record/{zenodo_id}/files/{file_name}?download=1'
-        if session is None:
-            session = requests.sessions.Session()
-        with session.get(file_url, stream=True) as response:
-            yield response
+    zenodo_base_url = Informational(description='Base Zenodo URL. Should use the well-known'
+            ' site URL if this property is unavailable', multiple=False)
+    zenodo_id = Informational(description='Record ID from Zenodo', multiple=False)
+    zenodo_file_name = Informational(description='Name of a file in a Zenodo record in'
+            ' `zenodo_id`', multiple=False)
