@@ -8,7 +8,7 @@ import importlib
 
 from owmeta_core.context import ClassContext
 from owmeta_core import BASE_CONTEXT
-from owmeta_core.json_schema import DataSourceTypeCreator
+from owmeta_core.json_schema import DataObjectTypeCreator
 from pow_zodb.ZODB import register_id_series
 from rdflib.namespace import Namespace
 from rdflib.term import Literal
@@ -23,7 +23,7 @@ CONTEXT = ClassContext(imported=(BASE_CONTEXT,),
                       base_namespace=BASE_SCHEMA_URL + '#')
 
 
-class MovementDataSourceTypeCreator(DataSourceTypeCreator):
+class MovementDataSourceTypeCreator(DataObjectTypeCreator):
 
     def __init__(self, name, schema, **kwargs):
         super().__init__(name,

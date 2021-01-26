@@ -8,6 +8,7 @@ import tempfile
 import zipfile
 from contextlib import contextmanager
 
+from owmeta.data_trans.data_with_evidence_ds import DataWithEvidenceDataSource
 from owmeta_core.capabilities import FilePathCapability, CacheDirectoryCapability
 from owmeta_core.datasource import DataTranslator, Informational
 from owmeta_core.json_schema import DataObjectCreator
@@ -97,7 +98,7 @@ class CeMEEDataTranslator(DataTranslator):
     See https://zenodo.org/record/4074963 for more.
     '''
     input_types = (CeMEEWCONDataSource,)
-    output_type = MovementDataSource
+    output_type = DataWithEvidenceDataSource
 
     def translate(self, source):
         # Assign these to self just to avoid the
@@ -137,7 +138,10 @@ class CeMEEDataTranslator(DataTranslator):
                     new_data[int(index)] = record
                 wcon_json['data'] = _SparseList(new_data)
             res = self.make_new_output((source,))
-            CeMEEDataSourceCreator(WCON_SCHEMA_2020_07).fill_in(res, wcon_json)
+            mds = res.data_context(MovementDataSource)(key=res.identifier)
+            # TODO: Create evidence and put it in the evidence context.
+            CeMEEDataSourceCreator(WCON_SCHEMA_2020_07).fill_in(mds, wcon_json,
+                    context=res.data_context)
             return res
 
 

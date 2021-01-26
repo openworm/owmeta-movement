@@ -4,6 +4,7 @@ import pytest
 from owmeta_core.capability import provide
 from owmeta_core.capabilities import FilePathProvider, CacheDirectoryProvider
 
+from owmeta_movement import MovementDataSource
 from owmeta_movement.cemee import CeMEEDataTranslator, CeMEEWCONDataSource
 
 
@@ -64,16 +65,16 @@ def test_translate_zip_not_found(providers):
         cut.translate(source)
 
 
-def test_translate_software_name(providers):
+def test_translate_result_has_movement_data(providers):
     source = CeMEEWCONDataSource(zenodo_id=1010101,
             file_name='test_cemee_file.tar.gz',
             zenodo_file_name='zenodo_fname',
             sample_zip_file_name='LSJ2_20190705_105444.wcon.zip')
     provide(source, providers)
     cut = CeMEEDataTranslator()
-    movement_datasource = cut(source)
-    name = movement_datasource.metadata.expr.software.tracker.name()
-    assert movement_datasource.metadata() == name
+    dweds = cut(source, output_key='test')
+    mds = dweds.data_context(MovementDataSource)()
+    assert len(list(mds.load())) > 0
 
 # TODO: Test with zip file already cached.
 
