@@ -4,7 +4,7 @@ import pytest
 from owmeta_core.capability import provide
 from owmeta_core.capabilities import FilePathProvider, CacheDirectoryProvider
 
-from owmeta_movement import MovementDataSource
+from owmeta_movement import WormTracks
 from owmeta_movement.cemee import CeMEEDataTranslator, CeMEEWCONDataSource
 
 
@@ -73,7 +73,7 @@ def test_translate_result_has_movement_data(providers):
     provide(source, providers)
     cut = CeMEEDataTranslator()
     dweds = cut(source, output_key='test')
-    mds = dweds.data_context(MovementDataSource)()
+    mds = dweds.data_context(WormTracks)()
     assert len(list(mds.load())) > 0
 
 # TODO: Test with zip file already cached.

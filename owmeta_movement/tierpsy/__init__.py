@@ -1,4 +1,4 @@
-from . import MovementDataSource
+from . import WormTracks
 
 try:
     import numpy
@@ -10,9 +10,9 @@ except ImportError:
     tables = None
 
 
-class TierpsyMovementDataSource(MovementDataSource):
+class TierpsyWormTracks(WormTracks):
     '''
-    A `MovementDataSource` that reads from a Tierpsy Tracker features file
+    A `WormTracks` that reads from a Tierpsy Tracker features file
     '''
     # recording61.4r_X1_features.hdf5
     def populate_from_features_file(self, features_file):

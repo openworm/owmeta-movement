@@ -23,7 +23,7 @@ CONTEXT = ClassContext(imported=(BASE_CONTEXT,),
                       base_namespace=BASE_SCHEMA_URL + '#')
 
 
-class MovementDataSourceTypeCreator(DataObjectTypeCreator):
+class WormTracksTypeCreator(DataObjectTypeCreator):
 
     def __init__(self, name, schema, **kwargs):
         super().__init__(name,
@@ -50,13 +50,13 @@ with _wcon_schema:
 # If we later get another version of the schema or change how this data source is
 # implemented, we can add on here. The dates are for the owmeta_movement schema version
 # rather than the WCON schema version
-WCON_SCHEMA_2020_07 = MovementDataSourceTypeCreator('MovementDataSource', _schema).annotate()
+WCON_SCHEMA_2020_07 = WormTracksTypeCreator('WormTracks', _schema).annotate()
 
 del _wcon_schema
 del _schema
 
 
-MovementDataSource = MovementDataSourceTypeCreator.retrieve_type(WCON_SCHEMA_2020_07)
+WormTracks = WormTracksTypeCreator.retrieve_type(WCON_SCHEMA_2020_07)
 
 
 DATA_LITERAL_SERIES = __name__ + '.DataLiteral'

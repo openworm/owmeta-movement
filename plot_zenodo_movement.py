@@ -6,14 +6,14 @@ from owmeta_core.collections import Seq
 from owmeta_core.command import OWM
 from owmeta_core.context import Context
 from owmeta_movement import DataRecord
-from owmeta_movement.zenodo import ZenodoMovementDataSource
+from owmeta_movement.zenodo import ZenodoWormTracks
 import matplotlib.pyplot as plt
 
 
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--context', help='Context from which the ZenodoMovementDataSource should be loaded')
+    parser.add_argument('--context', help='Context from which the ZenodoWormTracks should be loaded')
 
     lookup_group = parser.add_mutually_exclusive_group(required=True)
     lookup_group.add_argument('--ident', help='Identifier for the data source to load')
@@ -32,7 +32,7 @@ def main():
 
         ctx = conn(Context)(context)
         ctx.add_import(BASE_CONTEXT)
-        ds0 = ctx.stored(ZenodoMovementDataSource)(
+        ds0 = ctx.stored(ZenodoWormTracks)(
                 ident=args.ident,
                 zenodo_id=args.zenodo_id)
 
