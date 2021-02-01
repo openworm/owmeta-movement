@@ -9,16 +9,20 @@ import zipfile
 from contextlib import contextmanager
 
 from owmeta.data_trans.data_with_evidence_ds import DataWithEvidenceDataSource
+from owmeta.evidence import Evidence
 from owmeta_core.capabilities import FilePathCapability, CacheDirectoryCapability
 from owmeta_core.datasource import DataTranslator, Informational
 from owmeta_core.json_schema import DataObjectCreator
 from owmeta_core.collections import Seq
 
 from . import WormTracks, CONTEXT, DataLiteral, WCON_SCHEMA_2020_07
-from .zenodo import ZenodoFileDataSource
+from .zenodo import ZenodoFileDataSource, ZenodoRecord
 
 
 class CeMEEWCONDataSource(ZenodoFileDataSource):
+    '''
+    A DataSource providing WCON from the CeMEE MWT dataset on Zenodo
+    '''
     class_context = CONTEXT
     needed_capabilities = [FilePathCapability(), CacheDirectoryCapability()]
 
@@ -138,9 +142,18 @@ class CeMEEDataTranslator(DataTranslator):
                     new_data[int(index)] = record
                 wcon_json['data'] = _SparseList(new_data)
             res = self.make_new_output((source,))
-            mds = res.data_context(WormTracks)(key=res.identifier)
-            # TODO: Create evidence and put it in the evidence context.
-            CeMEEDataSourceCreator(WCON_SCHEMA_2020_07).fill_in(mds, wcon_json,
+
+            res.data_context.add_import(WormTracks.definition_context)
+            res.evidence_context.add_import(Evidence.definition_context)
+            res.evidence_context.add_import(ZenodoRecord.definition_context)
+
+            tracks = res.data_context(WormTracks)(key=res.identifier, direct_key=False)
+            zenodo_id = source.zenodo_id.one()
+            record = res.evidence_context(ZenodoRecord)(zenodo_id=zenodo_id)
+            res.evidence_context(Evidence)(
+                    reference=record,
+                    supports=res.data_context)
+            CeMEEDataSourceCreator(WCON_SCHEMA_2020_07).fill_in(tracks, wcon_json,
                     context=res.data_context)
             return res
 

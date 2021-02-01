@@ -6,8 +6,10 @@ import re
 import shutil
 
 from bs4 import BeautifulSoup
+from owmeta.document import BaseDocument
 from owmeta_core.data_trans.local_file_ds import LocalFileDataSource
 from owmeta_core.context import ClassContext
+from owmeta_core.dataobject import DatatypeProperty
 from owmeta_core.datasource_loader import DataSourceDirLoader, LoadFailed
 from owmeta_core.datasource import Informational
 import requests
@@ -21,6 +23,9 @@ SCHEMA_URL = 'http://schema.openworm.org/2020/07/sci/bio/movement/zenodo'
 CONTEXT = ClassContext(ident=SCHEMA_URL,
         imported=(CONTEXT,),
         base_namespace=SCHEMA_URL + '#')
+
+
+_ZENODO_BASE_URL = 'https://zenodo.org'
 
 
 class ZenodoRecordDirLoader(DataSourceDirLoader):
@@ -76,7 +81,7 @@ class ZenodoRecordDirLoader(DataSourceDirLoader):
             zenodo_base_url = zenodo_base_url_prop()
         else:
             zenodo_base_url = None
-        base_url = zenodo_base_url or 'https://zenodo.org'
+        base_url = zenodo_base_url or _ZENODO_BASE_URL
         if not file_name:
             url = _record_url(base_url, zenodo_id)
         else:
@@ -107,7 +112,7 @@ class ZenodoRecordDirLoader(DataSourceDirLoader):
             zenodo_base_url = zenodo_base_url_prop()
         else:
             zenodo_base_url = None
-        zenodo_base_url = zenodo_base_url or 'https://zenodo.org'
+        zenodo_base_url = zenodo_base_url or _ZENODO_BASE_URL
         # May re-evaluate this for resilence  -- as it is, we could fail part-way
         # through and have to redo everything
         if file_name:
@@ -115,20 +120,9 @@ class ZenodoRecordDirLoader(DataSourceDirLoader):
         else:
             # Yeah, I know they have an API. Don't care.
             session = self._session_provider()
-            files = []
-            with session.get(_record_url(zenodo_base_url, zenodo_id), stream=True) as response:
-                soup = BeautifulSoup(response.raw, 'html.parser')
-                re_safe_id = re.escape(zenodo_id)
-                file_ref_re = re.compile(rf'/record/{re_safe_id}/files/(.*)\?download=1')
-                link_elems = soup.find_all(href=file_ref_re)
-                if not link_elems:
-                    raise LoadFailed(data_source, self, 'Could not find any files')
-                for elem in link_elems:
-                    md = file_ref_re.match(elem['href'])
-                    if md:
-                        files.append(md.group(1))
-                    else:
-                        L.warning('Regular expression does not match twice?? I guess BeautifulSoup4 is broken.')
+            files = list(list_record_files(zenodo_id, zenodo_base_url=zenodo_base_url, session=session))
+            if not files:
+                raise LoadFailed(data_source, self, 'Could not find any files')
 
         for file_name in files:
             dest_file_name = p(recorddir, file_name)
@@ -167,6 +161,44 @@ class ZenodoRecordDirLoader(DataSourceDirLoader):
             yield response
 
 
+def list_record_files(zenodo_id, session=None, zenodo_base_url=None):
+    '''
+    List files in a Zenodo record
+
+    Parameters
+    ----------
+    zenodo_id : int
+        Zenodo record ID for which files should be listed
+    session : requests.Session, optional
+        The session to use for requests to Zenodo. Creates a default `requests.Session` if
+        not provided.
+    zenodo_base_url : str, optional
+        The base URL for zenodo. Uses the common Zenodo URL if not provided
+
+    Yields
+    ------
+    str
+        File names of records
+    '''
+    if session is None:
+        session = requests.Session()
+    if zenodo_base_url is None:
+        zenodo_base_url = _ZENODO_BASE_URL
+    with session.get(_record_url(zenodo_base_url, zenodo_id), stream=True) as response:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        re_safe_id = re.escape(str(zenodo_id))
+        file_ref_re = re.compile(rf'/record/{re_safe_id}/files/(.*)\?download=1')
+        link_elems = soup.find_all(class_='filename', href=file_ref_re)
+        if not link_elems:
+            return
+        for elem in link_elems:
+            md = file_ref_re.match(elem['href'])
+            if md:
+                yield md.group(1)
+            else:
+                L.warning('Regular expression does not match twice?? I guess BeautifulSoup4 is broken.')
+
+
 def _record_url(base_url, zenodo_id):
     return f'{base_url}/record/{zenodo_id}'
 
@@ -192,3 +224,13 @@ class ZenodoFileDataSource(LocalFileDataSource):
     zenodo_id = Informational(description='Record ID from Zenodo', multiple=False)
     zenodo_file_name = Informational(description='Name of a file in a Zenodo record in'
             ' `zenodo_id`', multiple=False)
+
+
+class ZenodoRecord(BaseDocument):
+    '''
+    Represents a Zenodo record
+    '''
+    class_context = CONTEXT
+
+    zenodo_id = DatatypeProperty(__doc__='Record ID from Zenodo', multiple=False)
+    key_property = zenodo_id
