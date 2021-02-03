@@ -112,10 +112,10 @@ class _CacheProvider(CacheDirectoryProvider):
     def __init__(self, base):
         self.base = base
 
-    def clear(self):
+    def clear(self, cache_key):
         pass
 
-    def cache_directory(self):
+    def cache_directory(self, cache_key):
         return p(self.base, 'cache')
 
     def provides_to(self, ob):
