@@ -10,6 +10,7 @@ from contextlib import contextmanager
 
 from owmeta.data_trans.data_with_evidence_ds import DataWithEvidenceDataSource
 from owmeta.evidence import Evidence
+from owmeta_core.utils import FCN
 from owmeta_core.capabilities import FilePathCapability, CacheDirectoryCapability
 from owmeta_core.datasource import DataTranslator, Informational
 from owmeta_core.json_schema import DataObjectCreator
@@ -65,7 +66,7 @@ class CeMEEWCONDataSource(ZenodoFileDataSource):
 
         cache_directory = None
         if self._cache_provider:
-            cache_directory = self._cache_provider.cache_directory()
+            cache_directory = self._cache_provider.cache_directory(FCN(type(self)))
 
         cleanup_dir = False
         if cache_directory is None:
@@ -101,6 +102,7 @@ class CeMEEDataTranslator(DataTranslator):
 
     See https://zenodo.org/record/4074963 for more.
     '''
+    class_context = CONTEXT
     input_types = (CeMEEWCONDataSource,)
     output_type = DataWithEvidenceDataSource
 

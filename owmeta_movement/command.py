@@ -1,9 +1,9 @@
 import transaction
-from owmeta_core.command_util import SubCommand
+from owmeta_core.command_util import SubCommand, GenericUserError
 from owmeta_core.utils import retrieve_provider
 
 from .zenodo import list_record_files
-from .cemee import CeMEEWCONDataSource
+from .cemee import CeMEEWCONDataSource, CeMEEDataTranslator
 
 
 class CeMEECommand:
@@ -17,7 +17,9 @@ class CeMEECommand:
 
     def save(self, zenodo_id, zenodo_file_name, sample_zip_file_name, ident=None, key=None):
         '''
-        Save a `CeMEEWCONDataSource` for a given zenodo_id
+        Save a `CeMEEWCONDataSource` for a given zenodo_id.
+
+        At either `ident` or `key` must be provided.
 
         Parameters
         ----------
@@ -33,6 +35,8 @@ class CeMEECommand:
             Key for DataSource identifiers
         '''
 
+        if not key and not ident:
+            raise GenericUserError('Either ident or key must be provided')
         ctx = self._owm.default_context
         ctx.add_import(CeMEEWCONDataSource.definition_context)
         with transaction.manager:
@@ -42,6 +46,19 @@ class CeMEECommand:
                     zenodo_id=zenodo_id,
                     zenodo_file_name=zenodo_file_name,
                     sample_zip_file_name=sample_zip_file_name)
+            ctx.save()
+
+    def translate(self, data_source):
+        '''
+        Translate a CeMEEWCONDataSource into a MovementDataSource
+
+        Parameters
+        ----------
+        data_source : str
+            The identifier for the data source
+        '''
+        dt = CeMEEDataTranslator()
+        self._owm.translate(dt, data_sources=(data_source,))
 
 
 class MovementCommand:

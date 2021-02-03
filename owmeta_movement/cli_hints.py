@@ -20,5 +20,11 @@ CLI_HINTS = {
                 'names': ['sample_zip_file_name'],
             },
         },
+        'translate': {
+            (METHOD_NAMED_ARG, 'data_source'): {
+                'names': ['data_source'],
+            },
+
+        }
     },
 }

@@ -20,5 +20,6 @@ setup(name='owmeta_movement',
             'zenodo = owmeta_movement.command:ZenodoCommand',
         ],
         'owmeta_core.cli_hints': 'hints = owmeta_movement.cli_hints:CLI_HINTS',
+        'owmeta_core.datasource_dir_loader': 'zenodo = owmeta_movement.zenodo:ZenodoRecordDirLoader',
     }
 )

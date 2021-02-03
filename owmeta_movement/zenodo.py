@@ -33,11 +33,11 @@ class ZenodoRecordDirLoader(DataSourceDirLoader):
     Provides files by downloading them from Zonodo.
     '''
 
-    def __init__(self, base_directory, session_provider=None, **kwargs):
+    def __init__(self, base_directory=None, session_provider=None, **kwargs):
         '''
         Parameters
         ----------
-        base_directory : str
+        base_directory : str, optional
             Path to a directory where files will be saved when requested. An attempt will
             be made to create the directory if it does not already exist. The files
             created in this directory may be reused by other instances *of the same
@@ -223,7 +223,7 @@ class ZenodoFileDataSource(LocalFileDataSource):
             ' site URL if this property is unavailable', multiple=False)
     zenodo_id = Informational(description='Record ID from Zenodo', multiple=False)
     zenodo_file_name = Informational(description='Name of a file in a Zenodo record in'
-            ' `zenodo_id`', multiple=False)
+            ' `zenodo_id`', multiple=False, also=LocalFileDataSource.file_name)
 
 
 class ZenodoRecord(BaseDocument):
