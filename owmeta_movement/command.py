@@ -1,7 +1,10 @@
 import transaction
-from owmeta_core.command_util import SubCommand, GenericUserError
+from owmeta_core.collections import Seq
+from owmeta_core.command_util import SubCommand, GenericUserError, GeneratorWithData
 from owmeta_core.utils import retrieve_provider
+import matplotlib.pyplot as plt
 
+from . import WormTracks, DataRecord
 from .zenodo import list_record_files
 from .cemee import CeMEEWCONDataSource, CeMEEDataTranslator
 
@@ -71,6 +74,69 @@ class MovementCommand:
     def __init__(self, parent):
         self._parent = parent
         self._owm = parent
+
+    def list_tracks(self):
+        '''
+        List WormTracks
+        '''
+        ctx = self._owm.default_context.stored
+        tracks_q = ctx(WormTracks)()
+
+        def format_id(r):
+            return r.identifier
+
+        def format_lab(r):
+            md = r.metadata()
+            return md.lab()
+
+        return GeneratorWithData(tracks_q.load(),
+                                 text_format=format_id,
+                                 default_columns=('ID',),
+                                 columns=(format_id,
+                                          format_lab),
+                                 header=('ID', 'Lab'))
+
+    def plot(self, tracks, record_index=None):
+        '''
+        Do a plot of the given WormTracks
+
+        Parameters
+        ----------
+        tracks : str
+            ID of a WormTracks
+        record_index : int
+            Index of the record to plot. optional
+        '''
+        ctx = self._owm.default_context.stored
+        data_record = set(ctx(WormTracks)(ident=tracks).data.get()).pop()
+        print('Data Record', data_record)
+        if isinstance(data_record, Seq):
+            stored_data_record = ctx.stored(data_record)
+            if record_index is None:
+                members = stored_data_record.rdfs_member()
+
+                for record in members:
+                    x = record.x()[0]
+                    y = record.y()[0]
+                    plt.plot(x, y)
+            else:
+                record = stored_data_record[record_index]
+                if record is None:
+                    self._owm.message(f'No record at index {record_index}')
+                    return 1
+                x = record.x()[0]
+                y = record.y()[0]
+                plt.plot(x, y)
+
+        elif isinstance(data_record, DataRecord):
+            x = record.x()[0]
+            y = record.y()[0]
+            plt.plot(x, y)
+        else:
+            print(f'Cannot plot record {data_record}')
+            return 1
+
+        plt.show()
 
 
 class ZenodoCommand:

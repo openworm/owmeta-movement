@@ -1,6 +1,17 @@
 from owmeta_core.cli_common import METHOD_NAMED_ARG
 
 CLI_HINTS = {
+    'owmeta_movement.command.MovementCommand': {
+        'plot': {
+            (METHOD_NAMED_ARG, 'tracks'): {
+                'names': ['tracks'],
+            },
+            (METHOD_NAMED_ARG, 'record_index'): {
+                'names': ['record_index'],
+                'nargs': '?',
+            },
+        }
+    },
     'owmeta_movement.command.ZenodoCommand': {
         'list_files': {
             (METHOD_NAMED_ARG, 'zenodo_id'): {
