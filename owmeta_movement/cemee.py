@@ -139,8 +139,13 @@ class CeMEEDataTranslator(DataTranslator):
                 for index, record in data.items():
                     # CeMEE uses integers for the IDs, but we need strings
                     record['id'] = str(record['id'])
-                    # The times don't match
+                    # Fix the dimensions of the data: each field is a singleton list, but
+                    # they should all be lists of numbers
                     record['t'] = record['t'][0]
+                    record['x'] = record['x'][0]
+                    record['y'] = record['y'][0]
+                    for extra_field, extra_val in record['@MWT'].items():
+                        record['@MWT'][extra_field] = extra_val[0]
                     new_data[int(index)] = record
                 wcon_json['data'] = _SparseList(new_data)
             res = self.make_new_output((source,))
@@ -164,6 +169,9 @@ class CeMEEDataSourceCreator(DataObjectCreator):
     '''
     Creates WormTracks from CeMEE Zenodo records
     '''
+    # XXX: This class might end up being a WCONDataObjectCreator instead... we massage the
+    # WCON into the right format in the DataTranslator for each type, but the mapping from
+    # well-formed WCON to WormTracks can be shared.
     def begin_sequence(self, schema):
         path = self.path_stack
         if len(path) == 1 and path[0] == 'data':

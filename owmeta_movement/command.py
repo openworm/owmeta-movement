@@ -2,7 +2,6 @@ import transaction
 from owmeta_core.collections import Seq
 from owmeta_core.command_util import SubCommand, GenericUserError, GeneratorWithData
 from owmeta_core.utils import retrieve_provider
-import matplotlib.pyplot as plt
 
 from . import WormTracks, DataRecord
 from .zenodo import list_record_files
@@ -107,34 +106,41 @@ class MovementCommand:
         record_index : int
             Index of the record to plot. optional
         '''
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            raise GenericUserError('Cannot plot. To install necessary dependencies, you can run:\n'
+                    '    pip install owmeta_movement[plot]')
+
         ctx = self._owm.default_context.stored
-        data_record = set(ctx(WormTracks)(ident=tracks).data.get()).pop()
-        print('Data Record', data_record)
+        data_set = set(ctx(WormTracks)(ident=tracks).data.get())
+        if not data_set:
+            raise GenericUserError('Found no data for the given WormTracks ID')
+        data_record = data_set.pop()
+        self._owm.message('Data Record', data_record)
         if isinstance(data_record, Seq):
             stored_data_record = ctx.stored(data_record)
             if record_index is None:
                 members = stored_data_record.rdfs_member()
 
                 for record in members:
-                    x = record.x()[0]
-                    y = record.y()[0]
+                    x = record.x()
+                    y = record.y()
                     plt.plot(x, y)
             else:
                 record = stored_data_record[record_index]
                 if record is None:
-                    self._owm.message(f'No record at index {record_index}')
-                    return 1
-                x = record.x()[0]
-                y = record.y()[0]
+                    raise GenericUserError(f'No record at index {record_index}')
+                x = record.x()
+                y = record.y()
                 plt.plot(x, y)
 
         elif isinstance(data_record, DataRecord):
-            x = record.x()[0]
-            y = record.y()[0]
+            x = record.x()
+            y = record.y()
             plt.plot(x, y)
         else:
-            print(f'Cannot plot record {data_record}')
-            return 1
+            raise GenericUserError(f'Cannot plot record {data_record}')
 
         plt.show()
 
