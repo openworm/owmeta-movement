@@ -124,25 +124,28 @@ class MovementCommand:
                 members = stored_data_record.rdfs_member()
 
                 for record in members:
-                    x = record.x()
-                    y = record.y()
-                    plt.plot(x, y)
+                    plot_record(record, plt)
             else:
                 record = stored_data_record[record_index]
                 if record is None:
                     raise GenericUserError(f'No record at index {record_index}')
-                x = record.x()
-                y = record.y()
-                plt.plot(x, y)
-
+                plot_record(record, plt)
         elif isinstance(data_record, DataRecord):
-            x = record.x()
-            y = record.y()
-            plt.plot(x, y)
+            plot_record(record, plt)
         else:
             raise GenericUserError(f'Cannot plot record {data_record}')
 
         plt.show()
+
+
+def plot_record(record, plt):
+    x = record.x()
+    y = record.y()
+    if len(x) > 0 and isinstance(x[0], (int, float)):
+        plt.plot(x, y)
+    elif len(x) > 0 and isinstance(x[0], list):
+        for ske_x, ske_y in zip(x, y):
+            plt.plot(ske_x, ske_y)
 
 
 class ZenodoCommand:
