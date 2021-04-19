@@ -11,12 +11,18 @@ from contextlib import contextmanager
 from owmeta.data_trans.data_with_evidence_ds import DataWithEvidenceDataSource
 from owmeta.evidence import Evidence
 from owmeta_core.utils import FCN
-from owmeta_core.capabilities import FilePathCapability, CacheDirectoryCapability
+from owmeta_core.capability import NoProviderGiven
+from owmeta_core.capabilities import (FilePathCapability,
+                                      CacheDirectoryCapability,
+                                      TemporaryDirectoryCapability)
+from owmeta_core.capable_configurable import CapableConfigurable
+from owmeta_core.data_trans.local_file_ds import CommitOp
 from owmeta_core.datasource import DataTranslator, Informational
 from owmeta_core.json_schema import DataObjectCreator
 from owmeta_core.collections import Seq
 
 from . import WormTracks, CONTEXT, DataLiteral, WCON_SCHEMA_2020_07
+from .wcon_ds import WCONDataSource
 from .zenodo import ZenodoFileDataSource, ZenodoRecord
 
 
@@ -34,7 +40,8 @@ class CeMEEWCONDataSource(ZenodoFileDataSource):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._cache_provider = None
+        if not hasattr(self, '_cache_provider'):
+            self._cache_provider = None
 
     def accept_capability_provider(self, cap, provider):
         if isinstance(cap, CacheDirectoryCapability):
@@ -47,6 +54,7 @@ class CeMEEWCONDataSource(ZenodoFileDataSource):
         '''
         Return the wcon file contents
         '''
+        # TODO: Make this return a properly formatted WCON file
         zenodo_id = self.zenodo_id.one()
         if not zenodo_id:
             raise Exception('Missing `zenodo_id`')
@@ -76,7 +84,7 @@ class CeMEEWCONDataSource(ZenodoFileDataSource):
         makedirs(mycachedir, exist_ok=True)
 
         try:
-            # May re-evaluate this for resilence -- as it is, we could fail part-way
+            # May re-evaluate this for resilience -- as it is, we could fail part-way
             # through and have to redo everything
             cached_tar_file_name = self.full_path()
 
@@ -96,6 +104,83 @@ class CeMEEWCONDataSource(ZenodoFileDataSource):
                 shutil.rmtree(cache_directory)
 
 
+class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
+    '''
+    Corrects the pseudo-WCON format into a form compliant with the 2020/07 version of the
+    WCON Schema
+    '''
+
+    needed_capabilities = [TemporaryDirectoryCapability()]
+
+    input_types = (CeMEEWCONDataSource,)
+    output_type = WCONDataSource
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not hasattr(self, '_tempdir'):
+            self._tempdir = None
+
+    def accept_capability_provider(self, cap, provider):
+        if isinstance(cap, TemporaryDirectoryCapability):
+            self._tempdir = provider.temporary_directory()
+        else:
+            super().accept_capability_provider(cap, provider)
+
+    def translate(self, source):
+
+        dest = self.make_new_output((source,))
+        if self._tempdir is None:
+            raise NoProviderGiven(TemporaryDirectoryCapability())
+        with source.wcon_contents() as wcon:
+            wcon_json = json.load(wcon)
+            # CeMEE wants to be special... fix up their data
+            try:
+                lab = wcon_json['metadata']['lab']
+                if isinstance(lab, str):
+                    wcon_json['metadata']['lab'] = {'name': lab}
+            except KeyError:
+                pass
+
+            try:
+                software = wcon_json['units']['software']
+                del wcon_json['units']['software']
+                wcon_json.setdefault('metadata', {})['software'] = software
+            except KeyError:
+                pass
+
+            try:
+                food = wcon_json['units']['food']
+                del wcon_json['units']['food']
+                wcon_json.setdefault('metadata', {})['food'] = food
+            except KeyError:
+                pass
+            data = wcon_json['data']
+            if isinstance(data, dict) and 'x' not in data:
+                # 'x' is required in a data record, so this was *probably* supposed to
+                # be an array, so let's pretend it is one
+                new_data = dict()
+                for index, record in data.items():
+                    # CeMEE uses integers for the IDs, but we need strings
+                    record['id'] = str(record['id'])
+                    # Fix the dimensions of the data: each field is a singleton list, but
+                    # they should all be lists of numbers
+                    record['t'] = record['t'][0]
+                    record['x'] = record['x'][0]
+                    record['y'] = record['y'][0]
+                    for extra_field, extra_val in record['@MWT'].items():
+                        record['@MWT'][extra_field] = extra_val[0]
+                    new_data[int(index)] = record
+                wcon_json['data'] = _SparseList(new_data)
+            sample_wcon_file_name, _ = splitext(source.sample_zip_file_name.one())
+            dest.file_name(sample_wcon_file_name)
+            dest.source_file_path = p(self._tempdir, sample_wcon_file_name)
+
+            dest.commit_op = CommitOp.RENAME
+            with open(dest.source_file_path, 'w') as outfile:
+                json.dump(wcon_json, outfile)
+            return dest
+
+
 class CeMEEDataTranslator(DataTranslator):
     '''
     Dealing with the CeMEE Multi-Worm Tracker entries.
@@ -107,7 +192,6 @@ class CeMEEDataTranslator(DataTranslator):
     output_type = DataWithEvidenceDataSource
 
     def translate(self, source):
-        # Assign these to self just to avoid the
         with source.wcon_contents() as wcon:
             wcon_json = json.load(wcon)
             # CeMEE wants to be special... fix up their data

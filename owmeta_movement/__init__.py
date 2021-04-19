@@ -6,9 +6,11 @@ from pkg_resources import resource_stream
 import json
 import importlib
 
+from owmeta_core.collections import Seq
 from owmeta_core.context import ClassContext
 from owmeta_core import BASE_CONTEXT
-from owmeta_core.json_schema import DataObjectTypeCreator
+from owmeta_core.json_schema import (DataObjectTypeCreator,
+                                     DataObjectCreator)
 from pow_zodb.ZODB import register_id_series
 from rdflib.namespace import Namespace
 from rdflib.term import Literal
@@ -43,6 +45,35 @@ class WormTracksTypeCreator(DataObjectTypeCreator):
         return res
 
 
+class WCONWormTracksCreator(DataObjectCreator):
+    '''
+    Creates `WormTracks` from WCON deserialized to Python objects
+    '''
+    # XXX: This class might end up being a WCONDataObjectCreator instead... we massage the
+    # WCON into the right format in the DataTranslator for each type, but the mapping from
+    # well-formed WCON to WormTracks can be shared.
+    def begin_sequence(self, schema):
+        path = self.path_stack
+        if len(path) == 1 and path[0] == 'data':
+            return Seq.contextualize(self.context)(ident=self.gen_ident())
+        return super().begin_sequence(schema)
+
+    def add_to_sequence(self, schema, sequence, idx, item):
+        path = self.path_stack
+        if isinstance(sequence, Seq) and len(path) == 2 and path[0] == 'data':
+            if item is None:
+                return sequence
+            sequence[idx] = item
+            return sequence
+        return super().add_to_sequence(schema, sequence, idx, item)
+
+    def assign(self, obj, key, val):
+        path = self.path_stack
+        if len(path) == 2 and path[0] == 'data' and isinstance(val, (dict, list)):
+            val = DataLiteral(val)
+        super().assign(obj, key, val)
+
+
 _wcon_schema = resource_stream('owmeta_movement', 'wcon_schema_2017_06.json')
 with _wcon_schema:
     _schema = json.load(_wcon_schema)
@@ -58,6 +89,7 @@ del _schema
 
 WormTracks = WormTracksTypeCreator.retrieve_type(WCON_SCHEMA_2020_07)
 
+WCONWormTracksCreator_2020_07 = WCONWormTracksCreator(WCON_SCHEMA_2020_07)
 
 DATA_LITERAL_SERIES = __name__ + '.DataLiteral'
 register_id_series(DATA_LITERAL_SERIES)

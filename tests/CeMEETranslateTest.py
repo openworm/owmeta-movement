@@ -1,12 +1,20 @@
-from os.path import join as p
+import os
+from os.path import join as p, exists
+import tempfile
 
 import pytest
 from owmeta.evidence import Evidence
 from owmeta_core.capability import provide
-from owmeta_core.capabilities import FilePathProvider, CacheDirectoryProvider
+from owmeta_core.capable_configurable import CAPABILITY_PROVIDERS_KEY
+from owmeta_core.capabilities import (FilePathProvider,
+                                      CacheDirectoryProvider,
+                                      TemporaryDirectoryProvider)
 
 from owmeta_movement import WormTracks
-from owmeta_movement.cemee import CeMEEDataTranslator, CeMEEWCONDataSource
+from owmeta_movement.wcon_ds import WCONDataSource
+from owmeta_movement.cemee import (CeMEEDataTranslator,
+                                   CeMEEWCONDataSource,
+                                   CeMEEToWCON202007DataTranslator as _202007DT)
 
 
 def test_translate_missing_zenodo_id(providers):
@@ -90,6 +98,19 @@ def test_translate_result_evidence(providers):
     ev = dweds.evidence_context(Evidence)()
     assert len(list(ev.load())) == 1
 
+
+def test_translate_lab(providers):
+    conf = {CAPABILITY_PROVIDERS_KEY: providers}
+    cut = _202007DT(conf=conf)
+    source = CeMEEWCONDataSource(zenodo_id=1010101,
+            file_name='test_cemee_file.tar.gz',
+            zenodo_file_name='test_cemee_file.tar.gz',
+            sample_zip_file_name='LSJ2_20190705_105444.wcon.zip',
+            conf=conf)
+    out = cut(source)
+    out.commit()
+
+
 # TODO: Test with zip file already cached.
 
 
@@ -97,12 +118,16 @@ def test_translate_result_evidence(providers):
 def providers(tmp_path):
     fp_prov = _CeMEEFileProvider()
     cache_prov = _CacheProvider(tmp_path)
-    return fp_prov, cache_prov
+    tempdir_prov = _TempDirProvider(tmp_path)
+    outdir_prov = _OutFileProvider(tmp_path)
+    return fp_prov, cache_prov, tempdir_prov, outdir_prov
 
 
 class _CeMEEFileProvider(FilePathProvider):
     def provides_to(self, ob):
-        return self
+        if isinstance(ob, CeMEEWCONDataSource):
+            return self
+        return None
 
     def file_path(self):
         return p('tests', 'testdata')
@@ -120,3 +145,29 @@ class _CacheProvider(CacheDirectoryProvider):
 
     def provides_to(self, ob):
         return self
+
+
+class _TempDirProvider(TemporaryDirectoryProvider):
+    def __init__(self, base):
+        self.base = base
+
+    def temporary_directory(self):
+        return tempfile.mkdtemp(dir=self.base)
+
+    def provides_to(self, ob):
+        return self
+
+
+class _OutFileProvider(FilePathProvider):
+    def __init__(self, base):
+        self.base = base
+
+    def provides_to(self, ob):
+        if isinstance(ob, WCONDataSource):
+            return self
+        return None
+
+    def file_path(self):
+        res = p(self.base, 'output')
+        os.mkdir(res)
+        return res
