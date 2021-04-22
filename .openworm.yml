@@ -1,0 +1,6 @@
+---
+repo: openworm/owmeta-movement
+shortDescription: "Tools for managing C. elegans movement data with owmeta"
+coordinator: mark@openworm.org
+parent:
+  - openworm/owmeta-core
