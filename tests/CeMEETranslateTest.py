@@ -1,5 +1,6 @@
+import json
 import os
-from os.path import join as p, exists
+from os.path import join as p
 import tempfile
 
 import pytest
@@ -99,7 +100,8 @@ def test_translate_result_evidence(providers):
     assert len(list(ev.load())) == 1
 
 
-def test_translate_lab(providers):
+@pytest.fixture
+def cemee_translation_res(providers):
     conf = {CAPABILITY_PROVIDERS_KEY: providers}
     cut = _202007DT(conf=conf)
     source = CeMEEWCONDataSource(zenodo_id=1010101,
@@ -109,6 +111,22 @@ def test_translate_lab(providers):
             conf=conf)
     out = cut(source)
     out.commit()
+    return out
+
+
+def test_translate_lab(cemee_translation_res):
+    with open(cemee_translation_res.full_path()) as f:
+        wcon = json.load(f)
+        assert wcon['metadata']['lab']['name'] == 'EEV'
+
+
+def test_data_list(cemee_translation_res):
+    '''
+    Test that the data list is actually list and not a dict
+    '''
+    with open(cemee_translation_res.full_path()) as f:
+        wcon = json.load(f)
+        assert wcon['data'][0]['id'] == '6'
 
 
 # TODO: Test with zip file already cached.
@@ -161,6 +179,8 @@ class _TempDirProvider(TemporaryDirectoryProvider):
 class _OutFileProvider(FilePathProvider):
     def __init__(self, base):
         self.base = base
+        self.dir = p(self.base, 'output')
+        os.mkdir(self.dir)
 
     def provides_to(self, ob):
         if isinstance(ob, WCONDataSource):
@@ -168,6 +188,4 @@ class _OutFileProvider(FilePathProvider):
         return None
 
     def file_path(self):
-        res = p(self.base, 'output')
-        os.mkdir(res)
-        return res
+        return self.dir

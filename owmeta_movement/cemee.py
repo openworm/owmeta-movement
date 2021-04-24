@@ -158,7 +158,7 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
             if isinstance(data, dict) and 'x' not in data:
                 # 'x' is required in a data record, so this was *probably* supposed to
                 # be an array, so let's pretend it is one
-                new_data = dict()
+                new_data = []
                 for index, record in data.items():
                     # CeMEE uses integers for the IDs, but we need strings
                     record['id'] = str(record['id'])
@@ -169,8 +169,8 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
                     record['y'] = record['y'][0]
                     for extra_field, extra_val in record['@MWT'].items():
                         record['@MWT'][extra_field] = extra_val[0]
-                    new_data[int(index)] = record
-                wcon_json['data'] = _SparseList(new_data)
+                    new_data.append(record)
+                wcon_json['data'] = new_data
             sample_wcon_file_name, _ = splitext(source.sample_zip_file_name.one())
             dest.file_name(sample_wcon_file_name)
             dest.source_file_path = p(self._tempdir, sample_wcon_file_name)
