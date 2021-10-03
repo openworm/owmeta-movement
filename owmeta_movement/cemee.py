@@ -10,6 +10,7 @@ from contextlib import contextmanager
 
 from owmeta.data_trans.data_with_evidence_ds import DataWithEvidenceDataSource
 from owmeta.evidence import Evidence
+from owmeta.document import SourcedFrom
 from owmeta_core.utils import FCN
 from owmeta_core.capability import NoProviderGiven
 from owmeta_core.capabilities import (FilePathCapability,
@@ -18,10 +19,8 @@ from owmeta_core.capabilities import (FilePathCapability,
 from owmeta_core.capable_configurable import CapableConfigurable
 from owmeta_core.data_trans.local_file_ds import CommitOp
 from owmeta_core.datasource import DataTranslator, Informational
-from owmeta_core.json_schema import DataObjectCreator
-from owmeta_core.collections import Seq
 
-from . import WormTracks, CONTEXT, DataLiteral, WCON_SCHEMA_2020_07
+from . import WormTracks, CONTEXT, WCONWormTracksCreator_2020_07
 from .wcon_ds import WCONDataSource
 from .zenodo import ZenodoFileDataSource, ZenodoRecord
 
@@ -178,6 +177,10 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
             dest.commit_op = CommitOp.RENAME
             with open(dest.source_file_path, 'w') as outfile:
                 json.dump(wcon_json, outfile)
+
+            zenodo_id = source.zenodo_id.one()
+            record = ZenodoRecord.contextualize(self.context)(zenodo_id=zenodo_id)
+            dest.attach_property(SourcedFrom)(record)
             return dest
 
 
@@ -244,38 +247,8 @@ class CeMEEDataTranslator(DataTranslator):
             res.evidence_context(Evidence)(
                     reference=record,
                     supports=res.data_context)
-            CeMEEDataSourceCreator(WCON_SCHEMA_2020_07).fill_in(tracks, wcon_json,
-                    context=res.data_context)
+            WCONWormTracksCreator_2020_07.fill_in(tracks, wcon_json, context=res.data_context)
             return res
-
-
-class CeMEEDataSourceCreator(DataObjectCreator):
-    '''
-    Creates WormTracks from CeMEE Zenodo records
-    '''
-    # XXX: This class might end up being a WCONDataObjectCreator instead... we massage the
-    # WCON into the right format in the DataTranslator for each type, but the mapping from
-    # well-formed WCON to WormTracks can be shared.
-    def begin_sequence(self, schema):
-        path = self.path_stack
-        if len(path) == 1 and path[0] == 'data':
-            return Seq.contextualize(self.context)(ident=self.gen_ident())
-        return super().begin_sequence(schema)
-
-    def add_to_sequence(self, schema, sequence, idx, item):
-        path = self.path_stack
-        if isinstance(sequence, Seq) and len(path) == 2 and path[0] == 'data':
-            if item is None:
-                return sequence
-            sequence[idx] = item
-            return sequence
-        return super().add_to_sequence(schema, sequence, idx, item)
-
-    def assign(self, obj, key, val):
-        path = self.path_stack
-        if len(path) == 2 and path[0] == 'data' and isinstance(val, (dict, list)):
-            val = DataLiteral(val)
-        super().assign(obj, key, val)
 
 
 _NOPE = object()

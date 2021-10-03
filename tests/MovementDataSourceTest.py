@@ -24,7 +24,6 @@ def test_load_from_class_description():
     crctx.save_imports()
     ClassDescription.definition_context.save(dat['rdf.graph'])
 
-    print(dat['rdf.graph'].serialize(format='n3').decode('UTF-8'))
     qcrctx = Context(crctxid, conf=dat).stored
     for rcd in qcrctx(ClassDescription)(ident=cd.identifier).load():
         assert 'WormTracks' == rcd.resolve_class().__name__
