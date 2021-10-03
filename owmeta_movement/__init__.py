@@ -63,7 +63,8 @@ class WCONWormTracksCreator(DataObjectCreator):
         if isinstance(sequence, Seq) and len(path) == 2 and path[0] == 'data':
             if item is None:
                 return sequence
-            sequence[idx] = item
+            # rdf:Seq is one-indexed
+            sequence[idx + 1] = item
             return sequence
         return super().add_to_sequence(schema, sequence, idx, item)
 

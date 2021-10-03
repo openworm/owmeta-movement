@@ -5,8 +5,7 @@ import tempfile
 
 import pytest
 from owmeta.evidence import Evidence
-from owmeta_core.context import Context
-from owmeta_core.capability import provide
+from owmeta_core.context import Context, IMPORTS_CONTEXT_KEY
 from owmeta_core.capable_configurable import CAPABILITY_PROVIDERS_KEY
 from owmeta_core.capabilities import (FilePathProvider,
                                       OutputFilePathProvider,
@@ -20,84 +19,95 @@ from owmeta_movement.cemee import (CeMEEDataTranslator,
                                    CeMEEToWCON202007DataTranslator as _202007DT)
 
 
-def test_translate_missing_zenodo_id(providers):
-    source = CeMEEWCONDataSource()
-    provide(source, providers)
-    cut = CeMEEDataTranslator()
+@pytest.fixture
+def context(providers):
+    ctx = Context('http://example.com/test-context',
+            imported=(WCONDataSource.definition_context,
+                CeMEEWCONDataSource.definition_context),
+            conf={CAPABILITY_PROVIDERS_KEY: providers,
+                IMPORTS_CONTEXT_KEY: 'http://example.org/imports'})
+    ctx.mapper.process_classes(WCONDataSource, CeMEEWCONDataSource)
+    return ctx
+
+
+@pytest.fixture
+def cemeedt(context):
+    return context(CeMEEDataTranslator)()
+
+
+@pytest.fixture
+def cemeewds(context):
+    return context(CeMEEWCONDataSource)(key='test')
+
+
+@pytest.fixture
+def cemeewdsf(context):
+    def f(**kwargs):
+        return context(CeMEEWCONDataSource)(key='test', **kwargs)
+    return f
+
+
+def test_translate_missing_zenodo_id(context, cemeedt, cemeewds):
     with pytest.raises(Exception, match='zenodo_id'):
-        cut.translate(source)
+        cemeedt(cemeewds)
 
 
-def test_translate_missing_zenodo_file_name(providers):
-    source = CeMEEWCONDataSource(zenodo_id=1010101)
-    provide(source, providers)
-    cut = CeMEEDataTranslator()
+def test_translate_missing_zenodo_file_name(context, cemeedt, cemeewds):
+    cemeewds.zenodo_id(1010101)
     with pytest.raises(Exception, match='zenodo_file_name'):
-        cut.translate(source)
+        cemeedt(cemeewds)
 
 
-def test_translate_missing_sample_zip_file_name(providers):
-    source = CeMEEWCONDataSource(zenodo_id=1010101,
-            zenodo_file_name='zenodo_fname')
-    provide(source, providers)
-    cut = CeMEEDataTranslator()
+def test_translate_missing_sample_zip_file_name(context, cemeedt, cemeewds):
+    cemeewds.zenodo_id(1010101)
+    cemeewds.zenodo_file_name('zenodo_fname')
     with pytest.raises(Exception, match='sample_zip_file_name'):
-        cut.translate(source)
+        cemeedt(cemeewds)
 
 
-def test_translate_sample_zip_file_name_wrong_ext(providers):
-    source = CeMEEWCONDataSource(zenodo_id=1010101,
-            zenodo_file_name='zenodo_fname',
-            sample_zip_file_name='blah.txt')
-    provide(source, providers)
-    cut = CeMEEDataTranslator()
+def test_translate_sample_zip_file_name_wrong_ext(context, cemeedt, cemeewds):
+    cemeewds.zenodo_id(1010101)
+    cemeewds.zenodo_file_name('zenodo_fname')
+    cemeewds.sample_zip_file_name('blah.txt')
     with pytest.raises(Exception, match='sample_zip_file_name.*zip'):
-        cut.translate(source)
+        cemeedt(cemeewds)
 
 
-def test_translate_missing_file(providers):
-    source = CeMEEWCONDataSource(zenodo_id=1010101,
+def test_translate_missing_file(context, cemeedt, cemeewdsf):
+    source = cemeewdsf(zenodo_id=1010101,
             file_name='zenodo_fname',
             zenodo_file_name='zenodo_fname',
             sample_zip_file_name='blah.zip')
-    provide(source, providers)
-    cut = CeMEEDataTranslator()
     with pytest.raises(Exception, match='zenodo_fname'):
-        cut.translate(source)
+        cemeedt(source)
 
 
-def test_translate_zip_not_found(providers):
-    source = CeMEEWCONDataSource(zenodo_id=1010101,
+def test_translate_zip_not_found(context, cemeedt, cemeewdsf):
+    source = cemeewdsf(zenodo_id=1010101,
             file_name='test_cemee_file.tar.gz',
             zenodo_file_name='zenodo_fname',
             sample_zip_file_name='blah.zip')
-    provide(source, providers)
-    cut = CeMEEDataTranslator()
     with pytest.raises(Exception, match='blah.zip'):
-        cut.translate(source)
+        cemeedt(source)
 
 
-def test_translate_result_has_tracks(providers):
-    source = CeMEEWCONDataSource(zenodo_id=1010101,
+def test_translate_result_has_tracks(context, cemeedt, cemeewdsf):
+    source = cemeewdsf(zenodo_id=1010101,
             file_name='test_cemee_file.tar.gz',
             zenodo_file_name='zenodo_fname',
             sample_zip_file_name='LSJ2_20190705_105444.wcon.zip')
-    provide(source, providers)
-    cut = CeMEEDataTranslator()
-    dweds = cut(source, output_key='test')
+    dweds = cemeedt(source, output_key='test')
     tracks = dweds.data_context(WormTracks)()
     tracksets = list(tracks.load())
     assert len(tracksets) == 1
 
 
-def test_translate_result_evidence(providers):
-    source = CeMEEWCONDataSource(zenodo_id=1010101,
+def test_translate_result_evidence(context, cemeedt, cemeewdsf):
+    source = cemeewdsf(zenodo_id=1010101,
             file_name='test_cemee_file.tar.gz',
             zenodo_file_name='zenodo_fname',
             sample_zip_file_name='LSJ2_20190705_105444.wcon.zip')
-    provide(source, providers)
-    cut = CeMEEDataTranslator()
-    dweds = cut(source, output_key='test')
+    dweds = cemeedt(source, output_key='test')
     ev = dweds.evidence_context(Evidence)()
     assert len(list(ev.load())) == 1
 

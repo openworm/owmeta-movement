@@ -4,6 +4,7 @@ from owmeta_pytest_plugin import bundle_versions
 
 @bundle_versions('movement_bundle', [1])
 @pytest.mark.inttest
+@pytest.mark.skip
 def test_cemee_save(owm_project, movement_bundle):
     # Save CeMEE data
     # Define a WCON datasource

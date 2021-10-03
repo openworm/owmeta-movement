@@ -1,5 +1,6 @@
 from os import makedirs
 from os.path import splitext, join as p, isfile
+import hashlib
 import io
 import json
 import shutil
@@ -9,7 +10,6 @@ import zipfile
 from contextlib import contextmanager
 
 from owmeta.data_trans.data_with_evidence_ds import DataWithEvidenceDataSource
-from owmeta.evidence import Evidence
 from owmeta.document import SourcedFrom
 from owmeta_core.utils import FCN
 from owmeta_core.capability import NoProviderGiven
@@ -20,8 +20,8 @@ from owmeta_core.capable_configurable import CapableConfigurable
 from owmeta_core.data_trans.local_file_ds import CommitOp
 from owmeta_core.datasource import DataTranslator, Informational
 
-from . import WormTracks, CONTEXT, WCONWormTracksCreator_2020_07
-from .wcon_ds import WCONDataSource
+from . import CONTEXT
+from .wcon_ds import WCONDataSource, WCONDataTranslator
 from .zenodo import ZenodoFileDataSource, ZenodoRecord
 
 
@@ -127,7 +127,6 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
 
     def translate(self, source):
 
-        dest = self.make_new_output((source,))
         if self._tempdir is None:
             raise NoProviderGiven(TemporaryDirectoryCapability())
         with source.wcon_contents() as wcon:
@@ -171,12 +170,15 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
                     new_data.append(record)
                 wcon_json['data'] = new_data
             sample_wcon_file_name, _ = splitext(source.sample_zip_file_name.one())
-            dest.file_name(sample_wcon_file_name)
-            dest.source_file_path = p(self._tempdir, sample_wcon_file_name)
+            source_file_path = p(self._tempdir, sample_wcon_file_name)
 
-            dest.commit_op = CommitOp.RENAME
-            with open(dest.source_file_path, 'w') as outfile:
+            with open(source_file_path, 'w') as outfile:
                 json.dump(wcon_json, outfile)
+
+            dest = self.make_new_output((source,),
+                    file_name=sample_wcon_file_name)
+            dest.commit_op = CommitOp.RENAME
+            dest.source_file_path = source_file_path
 
             zenodo_id = source.zenodo_id.one()
             record = ZenodoRecord.contextualize(self.context)(zenodo_id=zenodo_id)
@@ -195,60 +197,10 @@ class CeMEEDataTranslator(DataTranslator):
     output_type = DataWithEvidenceDataSource
 
     def translate(self, source):
-        with source.wcon_contents() as wcon:
-            wcon_json = json.load(wcon)
-            # CeMEE wants to be special... fix up their data
-            try:
-                lab = wcon_json['metadata']['lab']
-                if isinstance(lab, str):
-                    wcon_json['metadata']['lab'] = {'name': lab}
-            except KeyError:
-                pass
-
-            try:
-                software = wcon_json['units']['software']
-                del wcon_json['units']['software']
-                wcon_json.setdefault('metadata', {})['software'] = software
-            except KeyError:
-                pass
-
-            try:
-                food = wcon_json['units']['food']
-                del wcon_json['units']['food']
-                wcon_json.setdefault('metadata', {})['food'] = food
-            except KeyError:
-                pass
-            data = wcon_json['data']
-            if isinstance(data, dict) and 'x' not in data:
-                # 'x' is required in a data record, so this was *probably* supposed to
-                # be an array, so let's pretend it is one
-                new_data = dict()
-                for index, record in data.items():
-                    # CeMEE uses integers for the IDs, but we need strings
-                    record['id'] = str(record['id'])
-                    # Fix the dimensions of the data: each field is a singleton list, but
-                    # they should all be lists of numbers
-                    record['t'] = record['t'][0]
-                    record['x'] = record['x'][0]
-                    record['y'] = record['y'][0]
-                    for extra_field, extra_val in record['@MWT'].items():
-                        record['@MWT'][extra_field] = extra_val[0]
-                    new_data[int(index)] = record
-                wcon_json['data'] = _SparseList(new_data)
-            res = self.make_new_output((source,))
-
-            res.data_context.add_import(WormTracks.definition_context)
-            res.evidence_context.add_import(Evidence.definition_context)
-            res.evidence_context.add_import(ZenodoRecord.definition_context)
-
-            tracks = res.data_context(WormTracks)(key=res.identifier, direct_key=False)
-            zenodo_id = source.zenodo_id.one()
-            record = res.evidence_context(ZenodoRecord)(zenodo_id=zenodo_id)
-            res.evidence_context(Evidence)(
-                    reference=record,
-                    supports=res.data_context)
-            WCONWormTracksCreator_2020_07.fill_in(tracks, wcon_json, context=res.data_context)
-            return res
+        wcon = self.transform_part(CeMEEToWCON202007DataTranslator, source,
+                output_key=hashlib.sha1(source.identifier.encode('utf-8')).hexdigest())
+        return self.transform_part(WCONDataTranslator, wcon, output_key=self.output_key,
+                output_identifier=self.output_identifier)
 
 
 _NOPE = object()

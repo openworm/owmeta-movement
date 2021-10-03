@@ -3,6 +3,7 @@ import json
 from owmeta_core.datasource import DataTranslator
 from owmeta_core.data_trans.local_file_ds import LocalFileDataSource
 from owmeta.data_trans.data_with_evidence_ds import DataWithEvidenceDataSource
+from owmeta.document import SourcedFrom
 from owmeta.evidence import Evidence
 
 from . import WormTracks, CONTEXT, WCONWormTracksCreator_2020_07
@@ -25,13 +26,13 @@ class WCONDataTranslator(DataTranslator):
     output_type = DataWithEvidenceDataSource
 
     def translate(self, source):
-        with source.wcon_contents() as wcon:
+        with source.file_contents() as wcon:
             wcon_json = json.load(wcon)
             res = self.make_new_output((source,))
 
             res.data_context.add_import(WormTracks.definition_context)
 
-            source_documents = source.sourced_from.get()
+            source_documents = source.attach_property(SourcedFrom).get()
             if source_documents:
                 res.evidence_context.add_import(Evidence.definition_context)
             for source_document in source_documents:
