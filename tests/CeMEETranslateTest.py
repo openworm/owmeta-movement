@@ -58,19 +58,19 @@ def test_translate_missing_zenodo_file_name(context, cemeedt, cemeewds):
         cemeedt(cemeewds)
 
 
-def test_translate_missing_sample_zip_file_name(context, cemeedt, cemeewds):
-    cemeewds.zenodo_id(1010101)
-    cemeewds.zenodo_file_name('zenodo_fname')
+def test_translate_missing_sample_zip_file_name(context, cemeedt, cemeewdsf):
+    source = cemeewdsf(zenodo_id=1010101,
+            zenodo_file_name='zenodo_fname')
     with pytest.raises(Exception, match='sample_zip_file_name'):
-        cemeedt(cemeewds)
+        cemeedt(source)
 
 
-def test_translate_sample_zip_file_name_wrong_ext(context, cemeedt, cemeewds):
-    cemeewds.zenodo_id(1010101)
-    cemeewds.zenodo_file_name('zenodo_fname')
-    cemeewds.sample_zip_file_name('blah.txt')
+def test_translate_sample_zip_file_name_wrong_ext(context, cemeedt, cemeewdsf):
+    source = cemeewdsf(zenodo_id=1010101,
+            zenodo_file_name='zenodo_fname',
+            sample_zip_file_name='blah.txt')
     with pytest.raises(Exception, match='sample_zip_file_name.*zip'):
-        cemeedt(cemeewds)
+        cemeedt(source)
 
 
 def test_translate_missing_file(context, cemeedt, cemeewdsf):
@@ -91,25 +91,28 @@ def test_translate_zip_not_found(context, cemeedt, cemeewdsf):
         cemeedt(source)
 
 
-def test_translate_result_has_tracks(context, cemeedt, cemeewdsf):
+@pytest.fixture
+def cemeedt_result(context, cemeedt, cemeewdsf):
     source = cemeewdsf(zenodo_id=1010101,
             file_name='test_cemee_file.tar.gz',
             zenodo_file_name='zenodo_fname',
             sample_zip_file_name='LSJ2_20190705_105444.wcon.zip')
-    dweds = cemeedt(source, output_key='test')
-    tracks = dweds.data_context(WormTracks)()
+    return cemeedt(source, output_key='test')
+
+
+def test_translate_result_has_tracks(cemeedt_result):
+    tracks = cemeedt_result.data_context(WormTracks)()
     tracksets = list(tracks.load())
     assert len(tracksets) == 1
 
 
-def test_translate_result_evidence(context, cemeedt, cemeewdsf):
-    source = cemeewdsf(zenodo_id=1010101,
-            file_name='test_cemee_file.tar.gz',
-            zenodo_file_name='zenodo_fname',
-            sample_zip_file_name='LSJ2_20190705_105444.wcon.zip')
-    dweds = cemeedt(source, output_key='test')
-    ev = dweds.evidence_context(Evidence)()
+def test_translate_result_evidence(cemeedt_result):
+    ev = cemeedt_result.evidence_context(Evidence)()
     assert len(list(ev.load())) == 1
+
+
+def test_translators_delete_tempdirs(cemeedt, cemeedt_result, tmp_path):
+    assert not any([d.startswith('_TempDirProvider') for d in os.listdir(tmp_path)])
 
 
 @pytest.fixture
@@ -190,7 +193,7 @@ class _TempDirProvider(TemporaryDirectoryProvider):
         self.base = base
 
     def temporary_directory(self):
-        return tempfile.mkdtemp(dir=self.base)
+        return tempfile.mkdtemp(prefix='_TempDirProvider.', dir=self.base)
 
     def provides_to(self, ob, cap):
         return self

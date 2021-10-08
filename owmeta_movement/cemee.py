@@ -1,5 +1,5 @@
 from os import makedirs
-from os.path import splitext, join as p, isfile
+from os.path import splitext, join as p, isfile, isdir
 import hashlib
 import io
 import json
@@ -124,6 +124,14 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
             self._tempdir = provider.temporary_directory()
         else:
             super().accept_capability_provider(cap, provider)
+
+    def after_transform(self):
+        if isdir(self._tempdir):
+            shutil.rmtree(self._tempdir)
+
+    def __del__(self):
+        if isdir(self._tempdir):
+            shutil.rmtree(self._tempdir)
 
     def translate(self, source):
 
