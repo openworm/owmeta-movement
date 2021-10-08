@@ -17,7 +17,8 @@ class CeMEECommand:
         self._parent = parent
         self._owm = parent._parent
 
-    def save(self, zenodo_id, zenodo_file_name, sample_zip_file_name, ident=None, key=None):
+    def save(self, zenodo_id, zenodo_file_name, sample_zip_file_name,
+            zenodo_base_url=None, ident=None, key=None):
         '''
         Save a `CeMEEWCONDataSource` for a given zenodo_id.
 
@@ -31,6 +32,8 @@ class CeMEECommand:
             File name in the Zenodo record
         sample_zip_file_name : str
             File name of a ZIP file within the Zenodo file
+        zenodo_base_url : str
+            Base URL for Zenodo. Useful for testing against sandbox.zenodo.org. Optional.
         ident : str
             The identifier for the new DataSource
         key : str
@@ -47,7 +50,8 @@ class CeMEECommand:
                     key=key,
                     zenodo_id=zenodo_id,
                     zenodo_file_name=zenodo_file_name,
-                    sample_zip_file_name=sample_zip_file_name)
+                    sample_zip_file_name=sample_zip_file_name,
+                    zenodo_base_url=zenodo_base_url)
             ctx.save()
 
     def translate(self, data_source):
