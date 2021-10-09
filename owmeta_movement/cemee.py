@@ -17,12 +17,19 @@ from owmeta_core.capabilities import (FilePathCapability,
                                       CacheDirectoryCapability,
                                       TemporaryDirectoryCapability)
 from owmeta_core.capable_configurable import CapableConfigurable
+from owmeta_core.context import ClassContext
 from owmeta_core.data_trans.local_file_ds import CommitOp
 from owmeta_core.datasource import DataTranslator, Informational
 
-from . import CONTEXT
+from . import CONTEXT as MOVEMENT_CONTEXT
 from .wcon_ds import WCONDataSource, WCONDataTranslator
-from .zenodo import ZenodoFileDataSource, ZenodoRecord
+from .zenodo import ZenodoFileDataSource, ZenodoRecord, CONTEXT as ZENODO_CONTEXT
+
+SCHEMA_URL = 'http://schema.openworm.org/2020/07/sci/bio/movement/CeMEEMWT'
+
+CONTEXT = ClassContext(ident=SCHEMA_URL,
+        imported=(MOVEMENT_CONTEXT, ZENODO_CONTEXT),
+        base_namespace=SCHEMA_URL + '#')
 
 
 class CeMEEWCONDataSource(ZenodoFileDataSource):
@@ -109,6 +116,7 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
     WCON Schema
     '''
 
+    class_context = CONTEXT
     needed_capabilities = [TemporaryDirectoryCapability()]
 
     input_types = (CeMEEWCONDataSource,)
