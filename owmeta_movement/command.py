@@ -45,7 +45,7 @@ class CeMEECommand:
         ctx = self._owm.default_context
         ctx.add_import(CeMEEWCONDataSource.definition_context)
         with transaction.manager:
-            ctx(CeMEEWCONDataSource)(
+            res = ctx(CeMEEWCONDataSource)(
                     ident=ident,
                     key=key,
                     zenodo_id=zenodo_id,
@@ -53,6 +53,8 @@ class CeMEECommand:
                     sample_zip_file_name=sample_zip_file_name,
                     zenodo_base_url=zenodo_base_url)
             ctx.save()
+            ctx.save_imports()
+        return res.identifier
 
     def translate(self, data_source):
         '''
@@ -64,7 +66,7 @@ class CeMEECommand:
             The identifier for the data source
         '''
         dt = CeMEEDataTranslator()
-        self._owm.translate(dt, data_sources=(data_source,))
+        self._owm.translate(dt.identifier, data_sources=(data_source,))
 
 
 class MovementCommand:
