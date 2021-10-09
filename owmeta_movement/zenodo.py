@@ -14,14 +14,14 @@ from owmeta_core.datasource_loader import DataSourceDirLoader, LoadFailed
 from owmeta_core.datasource import Informational
 import requests
 
-from . import CONTEXT
+from . import CONTEXT as MOVEMENT_CONTEXT
 
 L = logging.getLogger(__name__)
 
 SCHEMA_URL = 'http://schema.openworm.org/2020/07/sci/bio/movement/zenodo'
 
 CONTEXT = ClassContext(ident=SCHEMA_URL,
-        imported=(CONTEXT,),
+        imported=(MOVEMENT_CONTEXT,),
         base_namespace=SCHEMA_URL + '#')
 
 
