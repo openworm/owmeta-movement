@@ -18,14 +18,9 @@ deposition_data = dict(metadata=dict(
     license='cc-nc',
 ))
 
-# deposition_data={}
 r = requests.post('https://sandbox.zenodo.org/api/deposit/depositions',
                params=params,
                json=deposition_data,
-               # Headers are not necessary here since "requests" automatically
-               # adds "Content-Type: application/json", because we're using
-               # the "json=" keyword argument
-               # headers=headers,
                headers=headers)
 
 if r.status_code != 201:

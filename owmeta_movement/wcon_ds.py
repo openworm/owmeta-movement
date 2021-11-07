@@ -22,7 +22,7 @@ class WCONDataTranslator(DataTranslator):
     Takes valid WCON data and turns it into WormTracks
     '''
     class_context = CONTEXT
-    input_types = (WCONDataSource,)
+    input_type = (WCONDataSource,)
     output_type = DataWithEvidenceDataSource
 
     def translate(self, source):

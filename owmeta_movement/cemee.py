@@ -3,6 +3,7 @@ from os.path import splitext, join as p, isfile, isdir
 import hashlib
 import io
 import json
+import logging
 import shutil
 import tarfile
 import tempfile
@@ -30,6 +31,9 @@ SCHEMA_URL = 'http://schema.openworm.org/2020/07/sci/bio/movement/CeMEEMWT'
 CONTEXT = ClassContext(ident=SCHEMA_URL,
         imported=(MOVEMENT_CONTEXT, ZENODO_CONTEXT),
         base_namespace=SCHEMA_URL + '#')
+
+
+L = logging.getLogger(__name__)
 
 
 class CeMEEWCONDataSource(ZenodoFileDataSource):
@@ -119,7 +123,7 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
     class_context = CONTEXT
     needed_capabilities = [TemporaryDirectoryCapability()]
 
-    input_types = (CeMEEWCONDataSource,)
+    input_type = (CeMEEWCONDataSource,)
     output_type = WCONDataSource
 
     def __init__(self, *args, **kwargs):
@@ -134,10 +138,6 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
             super().accept_capability_provider(cap, provider)
 
     def after_transform(self):
-        if isdir(self._tempdir):
-            shutil.rmtree(self._tempdir)
-
-    def __del__(self):
         if isdir(self._tempdir):
             shutil.rmtree(self._tempdir)
 
@@ -209,12 +209,14 @@ class CeMEEDataTranslator(DataTranslator):
     See https://zenodo.org/record/4074963 for more.
     '''
     class_context = CONTEXT
-    input_types = (CeMEEWCONDataSource,)
+    input_type = (CeMEEWCONDataSource,)
     output_type = DataWithEvidenceDataSource
 
     def translate(self, source):
+        L.debug("CeMEEDataTranslator CeMEE data source: %s", source)
         wcon = self.transform_part(CeMEEToWCON202007DataTranslator, source,
                 output_key=hashlib.sha1(source.identifier.encode('utf-8')).hexdigest())
+        L.debug("CeMEEDataTranslator WCON data source: %s", wcon)
         return self.transform_part(WCONDataTranslator, wcon, output_key=self.output_key,
                 output_identifier=self.output_identifier)
 

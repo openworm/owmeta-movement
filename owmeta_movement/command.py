@@ -42,9 +42,9 @@ class CeMEECommand:
 
         if not key and not ident:
             raise GenericUserError('Either ident or key must be provided')
-        ctx = self._owm.default_context
-        ctx.add_import(CeMEEWCONDataSource.definition_context)
-        with transaction.manager:
+        with self._owm.connect(), transaction.manager:
+            ctx = self._owm.default_context
+            ctx.add_import(CeMEEWCONDataSource.definition_context)
             res = ctx(CeMEEWCONDataSource)(
                     ident=ident,
                     key=key,
@@ -53,8 +53,8 @@ class CeMEECommand:
                     sample_zip_file_name=sample_zip_file_name,
                     zenodo_base_url=zenodo_base_url)
             ctx.save()
-            ctx.save_imports()
-        return res.identifier
+            ctx.save_imports(transitive=False)
+            return res.identifier
 
     def translate(self, data_source):
         '''
