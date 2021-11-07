@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    uses: openworm/owmeta-movement/.github/workflows/test.yml@${{ github.ref }}
+    uses: openworm/owmeta-movement/.github/workflows/test.yml@master
     with:
       coveralls: ${{github.event_name != 'schedule'}}
       ref: ${{ github.ref }}
@@ -15,7 +15,7 @@ jobs:
       github_token: ${{secrets.GITHUB_TOKEN}}
   dev-deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    uses: openworm/owmeta-movement/.github/workflows/deploy.yml@${{ github.ref }}
+    uses: openworm/owmeta-movement/.github/workflows/deploy.yml@master
     needs: test
     with:
       ref: refs/heads/develop
@@ -25,6 +25,6 @@ jobs:
   coveralls:
     if: github.event_name == 'push'
     needs: test
-    uses: openworm/owmeta-movement/.github/workflows/coveralls-upload.yml@${{ github.ref }}
+    uses: openworm/owmeta-movement/.github/workflows/coveralls-upload.yml@master
     secrets:
       github_token: ${{secrets.GITHUB_TOKEN}}
