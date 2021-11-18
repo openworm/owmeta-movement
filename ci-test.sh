@@ -1,3 +1,3 @@
 #!/bin/sh -x
 
-pytest --cov=./owmeta_movement
+pytest --cov=./owmeta_movement -m 'not inttest'
