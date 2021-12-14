@@ -214,10 +214,10 @@ class CeMEEDataTranslator(DataTranslator):
 
     def translate(self, source):
         L.debug("CeMEEDataTranslator CeMEE data source: %s", source)
-        wcon = self.transform_part(CeMEEToWCON202007DataTranslator, source,
+        wcon = self.transform_with(CeMEEToWCON202007DataTranslator, source,
                 output_key=hashlib.sha1(source.identifier.encode('utf-8')).hexdigest())
         L.debug("CeMEEDataTranslator WCON data source: %s", wcon)
-        return self.transform_part(WCONDataTranslator, wcon, output_key=self.output_key,
+        return self.transform_with(WCONDataTranslator, wcon, output_key=self.output_key,
                 output_identifier=self.output_identifier)
 
 
