@@ -1,7 +1,7 @@
 .. owmeta-movement documentation master file.
 
 Welcome to owmeta-movement's documentation!
-=======================================
+===========================================
 
 Our main README is available online on GitHub. [1]_  This documentation
 contains additional materials beyond what is covered there.
