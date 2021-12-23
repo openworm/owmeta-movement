@@ -3,7 +3,7 @@ name: Coveralls Upload
 on:
   workflow_call:
     secrets:
-      github_token:
+      my_github_token:
         required: false
 
 jobs:
