@@ -5,6 +5,7 @@ import tempfile
 
 import pytest
 from owmeta.evidence import Evidence
+from owmeta.document import SourcedFrom, Document
 from owmeta_core.context import Context, IMPORTS_CONTEXT_KEY
 from owmeta_core.capable_configurable import CAPABILITY_PROVIDERS_KEY
 from owmeta_core.capabilities import (FilePathProvider,
@@ -49,12 +50,6 @@ def cemeewdsf(context):
 
 def test_translate_missing_zenodo_id(context, cemeedt, cemeewds):
     with pytest.raises(Exception, match='zenodo_id'):
-        cemeedt(cemeewds)
-
-
-def test_translate_missing_zenodo_file_name(context, cemeedt, cemeewds):
-    cemeewds.zenodo_id(1010101)
-    with pytest.raises(Exception, match='zenodo_file_name'):
         cemeedt(cemeewds)
 
 
@@ -149,6 +144,18 @@ def test_data_list(cemee_translation_res):
     with open(cemee_translation_res.full_path()) as f:
         wcon = json.load(f)
         assert wcon['data'][0]['id'] == '6'
+
+
+def test_cemeedt_with_evidence(context, cemeedt, cemeewdsf):
+    source = cemeewdsf(
+            file_name='test_cemee_file.tar.gz',
+            zenodo_file_name='zenodo_fname',
+            sample_zip_file_name='LSJ2_20190705_105444.wcon.zip')
+    doc = Document(key='cemeeMWT2020', doi='10.5281/zenodo.4074963')
+    source.attach_property(SourcedFrom)(doc)
+    dweds_res = cemeedt(source, output_key='test')
+    ref = dweds_res.evidence_context(Evidence)().reference()
+    assert ref.identifier == doc.identifier
 
 
 # TODO: Test with zip file already cached.

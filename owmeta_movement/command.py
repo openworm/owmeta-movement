@@ -1,10 +1,11 @@
 import transaction
+from owmeta.document import SourcedFrom
 from owmeta_core.collections import Seq
 from owmeta_core.command_util import SubCommand, GenericUserError, GeneratorWithData
 from owmeta_core.utils import retrieve_provider
 
 from . import WormTracks, DataRecord
-from .zenodo import list_record_files
+from .zenodo import list_record_files, ZenodoRecord
 from .cemee import CeMEEWCONDataSource, CeMEEDataTranslator
 
 
@@ -22,7 +23,9 @@ class CeMEECommand:
         '''
         Save a `CeMEEWCONDataSource` for a given zenodo_id.
 
-        At either `ident` or `key` must be provided.
+        Either `ident` or `key` must be provided. Also adds a statement indicating the
+        result is `sourced from <owmeta.document.SourcedFrom>` a
+        `~owmeta_movement.zenodo.ZenodoRecord`
 
         Parameters
         ----------
@@ -45,6 +48,7 @@ class CeMEECommand:
         with self._owm.connect(), transaction.manager:
             ctx = self._owm.default_context
             ctx.add_import(CeMEEWCONDataSource.definition_context)
+            ctx.add_import(ZenodoRecord.definition_context)
             res = ctx(CeMEEWCONDataSource)(
                     ident=ident,
                     key=key,
@@ -52,6 +56,10 @@ class CeMEECommand:
                     zenodo_file_name=zenodo_file_name,
                     sample_zip_file_name=sample_zip_file_name,
                     zenodo_base_url=zenodo_base_url)
+
+            record = ZenodoRecord.contextualize(ctx)(zenodo_id=zenodo_id)
+            res.attach_property(SourcedFrom)(record)
+
             ctx.save()
             ctx.save_imports(transitive=False)
             return res.identifier
@@ -82,7 +90,7 @@ class MovementCommand:
 
     def list_tracks(self):
         '''
-        List WormTracks
+        List `~owmeta_movement.WormTracks`
         '''
         ctx = self._owm.default_context.stored
         tracks_q = ctx(WormTracks)()
@@ -103,7 +111,7 @@ class MovementCommand:
 
     def plot(self, tracks, record_index=None):
         '''
-        Do a plot of the given WormTracks
+        Do a plot of the given `~owmeta_movement.WormTracks`
 
         Parameters
         ----------

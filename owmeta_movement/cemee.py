@@ -19,12 +19,13 @@ from owmeta_core.capabilities import (FilePathCapability,
                                       TemporaryDirectoryCapability)
 from owmeta_core.capable_configurable import CapableConfigurable
 from owmeta_core.context import ClassContext
+from owmeta_core.data_trans.local_file_ds import LocalFileDataSource
 from owmeta_core.data_trans.local_file_ds import CommitOp
 from owmeta_core.datasource import DataTranslator, Informational
 
 from . import CONTEXT as MOVEMENT_CONTEXT
 from .wcon_ds import WCONDataSource, WCONDataTranslator
-from .zenodo import ZenodoFileDataSource, ZenodoRecord, CONTEXT as ZENODO_CONTEXT
+from .zenodo import CONTEXT as ZENODO_CONTEXT, ZenodoFileDataSource
 
 SCHEMA_URL = 'http://schema.openworm.org/2020/07/sci/bio/movement/CeMEEMWT'
 
@@ -36,7 +37,7 @@ CONTEXT = ClassContext(ident=SCHEMA_URL,
 L = logging.getLogger(__name__)
 
 
-class CeMEEWCONDataSource(ZenodoFileDataSource):
+class CeMEEWCONDataSource(LocalFileDataSource):
     '''
     A DataSource providing WCON from the CeMEE MWT dataset on Zenodo
     '''
@@ -64,14 +65,6 @@ class CeMEEWCONDataSource(ZenodoFileDataSource):
         '''
         Return the wcon file contents
         '''
-        # TODO: Make this return a properly formatted WCON file
-        zenodo_id = self.zenodo_id.one()
-        if not zenodo_id:
-            raise Exception('Missing `zenodo_id`')
-
-        zenodo_file_name = self.zenodo_file_name.one()
-        if not zenodo_file_name:
-            raise Exception('Missing `zenodo_file_name`')
 
         sample_zip_file_name = self.sample_zip_file_name.one()
         if not sample_zip_file_name:
@@ -90,7 +83,8 @@ class CeMEEWCONDataSource(ZenodoFileDataSource):
         if cache_directory is None:
             cache_directory = tempfile.mkdtemp()
             cleanup_dir = True
-        mycachedir = p(cache_directory, str(zenodo_id))
+        mycachedir = p(cache_directory,
+                hashlib.sha224(self.identifier.encode('utf-8')).hexdigest())
         makedirs(mycachedir, exist_ok=True)
 
         try:
@@ -112,6 +106,10 @@ class CeMEEWCONDataSource(ZenodoFileDataSource):
         finally:
             if cleanup_dir:
                 shutil.rmtree(cache_directory)
+
+
+class ZenodoCeMEEWCONDataSource(ZenodoFileDataSource, CeMEEWCONDataSource):
+    pass
 
 
 class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
@@ -196,9 +194,10 @@ class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
             dest.commit_op = CommitOp.RENAME
             dest.source_file_path = source_file_path
 
-            zenodo_id = source.zenodo_id.one()
-            record = ZenodoRecord.contextualize(self.context)(zenodo_id=zenodo_id)
-            dest.attach_property(SourcedFrom)(record)
+            source_docs = source.attach_property(SourcedFrom).get()
+            dest.attach_property(SourcedFrom)
+            for source_doc in source_docs:
+                dest.sourced_from.set(source_doc)
             return dest
 
 

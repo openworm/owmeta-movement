@@ -1,4 +1,4 @@
-from . import WormTracks
+from .. import WormTracks
 
 try:
     import numpy
