@@ -4,7 +4,7 @@ setup(name='owmeta_movement',
     version='0.0.1',
     install_requires=[
         'owmeta-core>=0.14.0.dev0',
-        'owmeta',
+        'owmeta>=0.12.4.dev0',
         'rdflib',
         'pow-store-zodb',
         'requests',
