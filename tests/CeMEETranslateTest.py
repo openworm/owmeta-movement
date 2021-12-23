@@ -17,7 +17,8 @@ from owmeta_movement import WormTracks
 from owmeta_movement.wcon_ds import WCONDataSource
 from owmeta_movement.cemee import (CeMEEDataTranslator,
                                    CeMEEWCONDataSource,
-                                   CeMEEToWCON202007DataTranslator as _202007DT)
+                                   CeMEEToWCON202007DataTranslator as _202007DT,
+                                   ZenodoCeMEEWCONDataSource)
 
 
 @pytest.fixture
@@ -38,19 +39,14 @@ def cemeedt(context):
 
 @pytest.fixture
 def cemeewds(context):
-    return context(CeMEEWCONDataSource)(key='test')
+    return context(ZenodoCeMEEWCONDataSource)(key='test')
 
 
 @pytest.fixture
 def cemeewdsf(context):
     def f(**kwargs):
-        return context(CeMEEWCONDataSource)(key='test', **kwargs)
+        return context(ZenodoCeMEEWCONDataSource)(key='test', **kwargs)
     return f
-
-
-def test_translate_missing_zenodo_id(context, cemeedt, cemeewds):
-    with pytest.raises(Exception, match='zenodo_id'):
-        cemeedt(cemeewds)
 
 
 def test_translate_missing_sample_zip_file_name(context, cemeedt, cemeewdsf):
@@ -101,9 +97,12 @@ def test_translate_result_has_tracks(cemeedt_result):
     assert len(tracksets) == 1
 
 
-def test_translate_result_evidence(cemeedt_result):
+def test_translate_result_no_evidence(cemeedt_result):
+    '''
+    We do not attach any documents to the result unless they are present on the source
+    '''
     ev = cemeedt_result.evidence_context(Evidence)()
-    assert len(list(ev.load())) == 1
+    assert len(list(ev.load())) == 0
 
 
 def test_translators_delete_tempdirs(cemeedt, cemeedt_result, tmp_path):
@@ -119,9 +118,7 @@ def cemee_translation_res(providers):
     ctx.mapper.process_class(WCONDataSource)
     cut = ctx(_202007DT)(conf=conf)
     source = ctx(CeMEEWCONDataSource)(key='1010101',
-            zenodo_id=1010101,
             file_name='test_cemee_file.tar.gz',
-            zenodo_file_name='test_cemee_file.tar.gz',
             sample_zip_file_name='LSJ2_20190705_105444.wcon.zip',
             conf=conf)
     out = cut(source, output_identifier='http://example.org/result_wcon')
@@ -151,7 +148,7 @@ def test_cemeedt_with_evidence(context, cemeedt, cemeewdsf):
             file_name='test_cemee_file.tar.gz',
             zenodo_file_name='zenodo_fname',
             sample_zip_file_name='LSJ2_20190705_105444.wcon.zip')
-    doc = Document(key='cemeeMWT2020', doi='10.5281/zenodo.4074963')
+    doc = context(Document)(key='cemeeMWT2020', doi='10.5281/zenodo.4074963')
     source.attach_property(SourcedFrom)(doc)
     dweds_res = cemeedt(source, output_key='test')
     ref = dweds_res.evidence_context(Evidence)().reference()

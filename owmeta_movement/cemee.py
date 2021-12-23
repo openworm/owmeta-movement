@@ -109,7 +109,7 @@ class CeMEEWCONDataSource(LocalFileDataSource):
 
 
 class ZenodoCeMEEWCONDataSource(ZenodoFileDataSource, CeMEEWCONDataSource):
-    pass
+    class_context = CONTEXT
 
 
 class CeMEEToWCON202007DataTranslator(CapableConfigurable, DataTranslator):
