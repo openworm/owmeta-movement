@@ -1,7 +1,7 @@
 ---
 id: openworm/owmeta-movement-schema
 name: owmeta-movement schema bundle
-version: 3
+version: 4
 description: Schema for OpenWorm movement data
 includes:
   - http://schema.openworm.org/2020/07/sci/bio/movement

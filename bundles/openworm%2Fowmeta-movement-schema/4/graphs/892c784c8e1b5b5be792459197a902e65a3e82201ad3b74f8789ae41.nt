@@ -1,0 +1,9 @@
+<http://schema.openworm.org/2020/07/ZenodoRecord> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://schema.openworm.org/2020/07/ZenodoRecord> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://schema.openworm.org/2020/07/BaseDocument> .
+<http://schema.openworm.org/2020/07/ZenodoRecord/zenodo_id> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://schema.openworm.org/2020/07/data_sources/ZenodoFileDataSource> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://schema.openworm.org/2020/07/data_sources/ZenodoFileDataSource> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://schema.openworm.org/2020/07/data_sources/LocalFileDataSource> .
+<http://schema.openworm.org/2020/07/data_sources/ZenodoFileDataSource/zenodo_base_url> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://schema.openworm.org/2020/07/data_sources/ZenodoFileDataSource/zenodo_file_name> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://schema.openworm.org/2020/07/data_sources/ZenodoFileDataSource/zenodo_id> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+

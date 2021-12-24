@@ -1,0 +1,12 @@
+<http://schema.openworm.org/2020/07/CeMEEDataTranslator> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://schema.openworm.org/2020/07/CeMEEDataTranslator> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://schema.openworm.org/2020/07/DataTranslator> .
+<http://schema.openworm.org/2020/07/CeMEEToWCON202007DataTranslator> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://schema.openworm.org/2020/07/CeMEEToWCON202007DataTranslator> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://schema.openworm.org/2020/07/DataTranslator> .
+<http://schema.openworm.org/2020/07/data_sources/CeMEEWCONDataSource> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://schema.openworm.org/2020/07/data_sources/CeMEEWCONDataSource> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://schema.openworm.org/2020/07/data_sources/LocalFileDataSource> .
+<http://schema.openworm.org/2020/07/data_sources/CeMEEWCONDataSource> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://schema.openworm.org/2020/07/data_sources/ZenodoFileDataSource> .
+<http://schema.openworm.org/2020/07/data_sources/CeMEEWCONDataSource/sample_zip_file_name> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://schema.openworm.org/2020/07/data_sources/ZenodoCeMEEWCONDataSource> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://schema.openworm.org/2020/07/data_sources/ZenodoCeMEEWCONDataSource> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://schema.openworm.org/2020/07/data_sources/CeMEEWCONDataSource> .
+<http://schema.openworm.org/2020/07/data_sources/ZenodoCeMEEWCONDataSource> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://schema.openworm.org/2020/07/data_sources/ZenodoFileDataSource> .
+
