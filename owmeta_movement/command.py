@@ -6,7 +6,7 @@ from owmeta_core.utils import retrieve_provider
 
 from . import WormTracks, DataRecord
 from .zenodo import list_record_files, ZenodoRecord
-from .cemee import CeMEEWCONDataSource, CeMEEDataTranslator
+from .cemee import ZenodoCeMEEWCONDataSource, CeMEEDataTranslator
 
 
 class CeMEECommand:
@@ -47,9 +47,9 @@ class CeMEECommand:
             raise GenericUserError('Either ident or key must be provided')
         with self._owm.connect(), transaction.manager:
             ctx = self._owm.default_context
-            ctx.add_import(CeMEEWCONDataSource.definition_context)
+            ctx.add_import(ZenodoCeMEEWCONDataSource.definition_context)
             ctx.add_import(ZenodoRecord.definition_context)
-            res = ctx(CeMEEWCONDataSource)(
+            res = ctx(ZenodoCeMEEWCONDataSource)(
                     ident=ident,
                     key=key,
                     zenodo_id=zenodo_id,
@@ -74,7 +74,7 @@ class CeMEECommand:
             The identifier for the data source
         '''
         dt = CeMEEDataTranslator()
-        self._owm.translate(dt.identifier, data_sources=(data_source,))
+        return self._owm.translate(dt.identifier, data_sources=(data_source,))
 
 
 class MovementCommand:
@@ -92,8 +92,13 @@ class MovementCommand:
         '''
         List `~owmeta_movement.WormTracks`
         '''
-        ctx = self._owm.default_context.stored
-        tracks_q = ctx(WormTracks)()
+        def gen():
+            with self._owm.connect():
+                ctx = self._owm.default_context.stored
+                tracks_q = ctx(WormTracks)()
+
+                for e in tracks_q.load():
+                    yield e
 
         def format_id(r):
             return r.identifier
@@ -102,7 +107,7 @@ class MovementCommand:
             md = r.metadata()
             return md.lab()
 
-        return GeneratorWithData(tracks_q.load(),
+        return GeneratorWithData(gen(),
                                  text_format=format_id,
                                  default_columns=('ID',),
                                  columns=(format_id,
@@ -126,28 +131,29 @@ class MovementCommand:
             raise GenericUserError('Cannot plot. To install necessary dependencies, you can run:\n'
                     '    pip install owmeta_movement[plot]')
 
-        ctx = self._owm.default_context.stored
-        data_set = set(ctx(WormTracks)(ident=tracks).data.get())
-        if not data_set:
-            raise GenericUserError('Found no data for the given WormTracks ID')
-        data_record = data_set.pop()
-        self._owm.message('Data Record', data_record)
-        if isinstance(data_record, Seq):
-            stored_data_record = ctx.stored(data_record)
-            if record_index is None:
-                members = stored_data_record.rdfs_member()
+        with self._owm.connect():
+            ctx = self._owm.default_context.stored
+            data_set = set(ctx(WormTracks)(ident=tracks).data.get())
+            if not data_set:
+                raise GenericUserError('Found no data for the given WormTracks ID')
+            data_record = data_set.pop()
+            self._owm.message('Data Record', data_record)
+            if isinstance(data_record, Seq):
+                stored_data_record = ctx.stored(data_record)
+                if record_index is None:
+                    members = stored_data_record.rdfs_member()
 
-                for record in members:
+                    for record in members:
+                        plot_record(record, plt)
+                else:
+                    record = stored_data_record[record_index]
+                    if record is None:
+                        raise GenericUserError(f'No record at index {record_index}')
                     plot_record(record, plt)
-            else:
-                record = stored_data_record[record_index]
-                if record is None:
-                    raise GenericUserError(f'No record at index {record_index}')
+            elif isinstance(data_record, DataRecord):
                 plot_record(record, plt)
-        elif isinstance(data_record, DataRecord):
-            plot_record(record, plt)
-        else:
-            raise GenericUserError(f'Cannot plot record {data_record}')
+            else:
+                raise GenericUserError(f'Cannot plot record {data_record}')
 
         plt.show()
 

@@ -42,7 +42,7 @@ class CeMEEWCONDataSource(LocalFileDataSource):
     A DataSource providing WCON from the CeMEE MWT dataset on Zenodo
     '''
     class_context = CONTEXT
-    needed_capabilities = [FilePathCapability(), CacheDirectoryCapability()]
+    wanted_capabilities = [FilePathCapability(), CacheDirectoryCapability()]
 
     sample_zip_file_name = Informational(description='Name of the WCON zip within the'
             ' archive file from the Zenodo record. Nominally, corresponds to a sample'
