@@ -22,11 +22,15 @@ To ensure support for plotting tracks, install with the `plot`
 
     pip install owmeta-movement[plot]
 
-Likely, you'll also want the owmeta-movement schema bundle declared as a
-dependency for several of the commands, described further in *Usage* below. To
-do so, add `{"id": "openworm/owmeta-movement-schema", "version": 1}` to your
-`.owm/owm.conf` file's `dependencies` list. Your `owm.conf` may look something
-like this: 
+Likely, you'll also want the owmeta-movement schema bundle for several of the
+commands, described further in *Usage* below. To do so, initialize your project
+(if you don't already have one):
+
+    owm init --default-context-id "http://example.org/movement"
+
+You can pick whatever you like for the default context ID. Add `{"id":
+"openworm/owmeta-movement-schema", "version": 4}` to your `.owm/owm.conf`
+file's `dependencies` list. Your `owm.conf` may look something like this:
 
     {
         "class_registry_context_id": "urn:uuid:33c67b01-a865-4ea3-8407-13b69e22e2d3",
@@ -35,7 +39,7 @@ like this:
         "rdf.source": "zodb",
         "rdf.store_conf": "$OWM/worm.db",
         "rdf.upload_block_statement_count": 50,
-        "dependencies": [{"id": "openworm/owmeta-movement-schema", "version": 1}]
+        "dependencies": [{"id": "openworm/owmeta-movement-schema", "version": 4}]
     }
 
 Then, you'll need to add a "remote" so `owm` knows where to get the bundle
@@ -60,7 +64,7 @@ working with it below. Be sure you've followed the instructions for installing
 the `openworm/owmeta-movement-schema` bundle above.
 
 First, add a [DataSource][datasource] reference to WCON from the CeMEE MWT
-dataset: 
+dataset:
 
     owm movement cemee save 4074963 CeMEE_MWT_founders.tar.gz LSJ2_20190705_105444.wcon.zip --key cemee-mwt-LSJ2_20190705_105444 
 
@@ -100,12 +104,28 @@ Then you can translate the WCON from the Zenodo record to the `WormTracks`
 format, which is essentially a translation of WCON into RDF, which is useful
 for commands that operate on this generic format. In addition, because CeMEE
 "WCON" does not quite conform to the WCON specification, this will also
-translate into a compliant form of WCON. To perform the translation, run this
+translate into a compliant form of WCON. To perform the translation, run these
 command:
 
+    owm translator create http://schema.openworm.org/2020/07/CeMEEDataTranslator
     owm movement cemee translate zenodo_cemee:cemee-mwt-LSJ2_20190705_105444
 
-Finally, for this brief walk-through, you can plot the "WormTracks". First, use
+The latter command should return the identifier for the resulting DataSource:
+
+    http://data.openworm.org/sci/data_sources/DataWithEvidenceDataSource#a86e368bfb698cf16647f441a304d6ec9
+
+This is also the identifier of the context that imports the context where
+statements in the DataSource are defined. See documentation for
+[DataWithEvidenceDataSource][DWEDS] for more information. For convenience,
+we'll add that context as an import to the project:
+
+    owm contexts add-import https://example.org/movement http://data.openworm.org/sci/data_sources/DataWithEvidenceDataSource#a86e368bfb698cf16647f441a304d6ec9
+
+You can remove the import later with:
+
+    owm contexts rm-import https://example.org/movement http://data.openworm.org/sci/data_sources/DataWithEvidenceDataSource#a86e368bfb698cf16647f441a304d6ec9
+
+So, finally, for this brief walk-through, you can plot the "WormTracks". First, use
 the `list-tracks` sub-command to get the ID:
 
     owm movement list-tracks
@@ -120,12 +140,10 @@ Then plot it with the `plot` sub-command:
 
 You can also plot individual tracks in the dataset.
 
-    owm movement plot 'http://data.openworm.org/sci/bio/movement/WormTracks#aae70bb80b9f6f08528fa08b1e269423f' 6
-
-(For this CeMEE MWT dataset, the records are discontinuous: there's a 6, and a
-13, but no 1-5 or 7-12.)
+    owm movement plot 'http://data.openworm.org/sci/bio/movement/WormTracks#aae70bb80b9f6f08528fa08b1e269423f' 1
 
 [OWMD]: https://zenodo.org/communities/open-worm-movement-database/
 [datasource]: https://owmeta-core.readthedocs.io/en/latest/api/owmeta_core.datasource.html#owmeta_core.datasource.DataSource
+[DWEDS]: https://owmeta.readthedocs.io/en/latest/api/owmeta.data_trans.data_with_evidence_ds.html#owmeta.data_trans.data_with_evidence_ds.DataWithEvidenceDataSource
 
 
