@@ -50,8 +50,6 @@ from:
 Once you have declared a remote with the `--user` option, as show above, you
 will not need to declare it again for each new project.
 
-<!--TODO: Upload an owmeta-movement-schema bundle-->
-
 [owmeta-cli]: https://owmeta-core.readthedocs.io/en/latest/command.html
 [pep508]: https://www.python.org/dev/peps/pep-0508/#extras
 
