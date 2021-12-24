@@ -14,7 +14,7 @@ def cemee_record_info():
         return json.load(f)
 
 
-@bundle_versions('movement_bundle', [3])
+@bundle_versions('movement_bundle', [4])
 @pytest.mark.bundle_remote('ow')
 @pytest.mark.inttest
 def test_cemee_save(owm_project, movement_bundle, cemee_record_info):
